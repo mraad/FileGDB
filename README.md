@@ -9,7 +9,7 @@ Note: This implementation does **not** support compressed file geo databases.
 
 The build is based on [sbt](https://www.scala-sbt.org/):
 
-```
+```bash
 sbt assembly
 ```
 
@@ -21,7 +21,7 @@ The best demonstration of the usage of this implementation is with [PySpark Data
 
 Create a [conda](https://conda.io/docs/) environment:
 
-```
+```bash
 conda create --name arcgis
 source activate arcgis
 conda install -c esri arcgis
@@ -30,7 +30,7 @@ conda install matplotlib
 
 Assuming that the env var `SPARK_HOME` points to the location of a Spark installation, start a Jupyter notebook that is backed by PySpark:
 
-```
+```bash
 export PATH=${SPARK_HOME}/bin:${PATH}
 export PYSPARK_DRIVER_PYTHON=jupyter
 export PYSPARK_DRIVER_PYTHON_OPTS='notebook --NotebookApp.iopub_data_rate_limit=10000000'
@@ -45,10 +45,36 @@ pyspark\
 
 Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) notebooks.
 
+Here is yet another example in Scala:
+
+```scala
+val path = "World.gdb"
+val name = "Countries"
+
+val spark = SparkSession.builder().getOrCreate()
+try
+{
+    spark
+      .read
+      .gdb(path, name)
+      .createTempView(name)
+
+    spark
+      .sql(s"select CNTRY_NAME,SQKM from $name where SQKM < 10000.0 ORDER BY SQKM DESC LIMIT 10")
+      .collect()
+      .foreach(println)
+}
+finally
+{
+    spark.stop()
+}
+```
+
 ## TODO
 
 - Write test cases !!!
 - Save geometry as a struct(type,xmin,ymin,xmax,ymax,parts,coords)
+- Add the option to skip reading the geometry
 
 ### References
 
