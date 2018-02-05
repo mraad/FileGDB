@@ -1,5 +1,7 @@
 .idea/
 target/
 project/target/
+metastore_db/
 SpatialDataFrameVizPackage.ipynb
+derby.log
 jn.sh

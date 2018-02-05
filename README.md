@@ -81,3 +81,4 @@ finally
 - https://github.com/minrk/findspark
 - https://blog.sicara.com/get-started-pyspark-jupyter-guide-tutorial-ae2fe84f594f
 - https://github.com/maxpoint/spylon
+- https://github.com/jupyter-scala/jupyter-scala#quick-start
