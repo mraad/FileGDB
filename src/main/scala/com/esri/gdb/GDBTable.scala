@@ -282,12 +282,12 @@ object GDBTable extends Serializable {
         }
       case 3 =>
         geometryProp match {
-          case 0x00 => new FieldMultiPath(StructField(name, StringType, nullable, metadata), xOrig, yOrig, xyScale, wkid)
+          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
           // case 0x40 => FieldPolylineMType(name, nullAllowed, xOrig, yOrig, mOrig, xyScale, mScale, metadata)
           case _ => throw new RuntimeException("Cannot parse (yet) polylines with Z value :-(")
         }
       case 4 | 5 =>
-        new FieldMultiPath(StructField(name, StringType, nullable, metadata), xOrig, yOrig, xyScale, wkid)
+        FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
       case _ =>
         new FieldGeomNoop(StructField(name, StringType, nullable, metadata))
     }

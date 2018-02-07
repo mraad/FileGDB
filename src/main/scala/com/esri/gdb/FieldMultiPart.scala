@@ -2,30 +2,25 @@ package com.esri.gdb
 
 import java.nio.ByteBuffer
 
-import com.esri.core.geometry.{OperatorExportToJson, Polygon, Polyline, SpatialReference}
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types._
 
-class FieldMultiPath(val field: StructField,
+import scala.collection.mutable.ArrayBuffer
+
+class FieldMultiPart(val field: StructField,
                      xOrig: Double,
                      yOrig: Double,
-                     xyScale: Double,
-                     wkid: Int
+                     xyScale: Double
                     ) extends FieldBytes {
 
-  val oper = OperatorExportToJson.local
-  val spatialReference = SpatialReference.create(wkid)
+  override type T = Row
 
-  override type T = String
-
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
     val geomType = blob.getVarUInt
-    val multiPath = geomType match {
-      case 3 => new Polyline()
-      case _ => new Polygon()
-    }
     val numPoints = blob.getVarUInt.toInt
     if (numPoints > 0) {
+      val coords = new ArrayBuffer[Double](numPoints * 2)
       val numParts = blob.getVarUInt.toInt
 
       val xmin = blob.getVarUInt // xyScale + xOrig
@@ -41,7 +36,7 @@ class FieldMultiPath(val field: StructField,
         var p = 0
         var n = 1
         var sum = 0
-        while (n < numParts) {
+        while (n < numParts) { // Read numParts-1
           val numXY = blob.getVarUInt.toInt
           parts(p) = numXY
           sum += numXY
@@ -58,14 +53,12 @@ class FieldMultiPath(val field: StructField,
             dy += blob.getVarInt
             val x = dx / xyScale + xOrig
             val y = dy / xyScale + yOrig
-            n match {
-              case 0 => multiPath.startPath(x, y)
-              case _ => multiPath.lineTo(x, y)
-            }
+            coords.append(x, y)
             n += 1
           }
           p += 1
         }
+        Row(parts, coords.toArray)
       }
       else {
         var n = 0
@@ -74,14 +67,27 @@ class FieldMultiPath(val field: StructField,
           dy += blob.getVarInt
           val x = dx / xyScale + xOrig
           val y = dy / xyScale + yOrig
-          n match {
-            case 0 => multiPath.startPath(x, y)
-            case _ => multiPath.lineTo(x, y)
-          }
+          coords.append(x, y)
           n += 1
         }
+        Row(Array(numPoints), coords.toArray)
       }
+    } else {
+      Row(Array.empty[Int], Array.empty[Double])
     }
-    oper.execute(spatialReference, multiPath)
+  }
+}
+
+object FieldMultiPart extends Serializable {
+  def apply(name: String,
+            nullable: Boolean,
+            metadata: Metadata,
+            xOrig: Double,
+            yOrig: Double,
+            xyScale: Double
+           ): FieldMultiPart = {
+    new FieldMultiPart(StructField(name,
+      StructType(Seq(StructField("parts", ArrayType(IntegerType), true), StructField("coords", ArrayType(DoubleType), true))
+      ), nullable, metadata), xOrig, yOrig, xyScale)
   }
 }
