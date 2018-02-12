@@ -48,6 +48,8 @@ Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) exam
 Here is yet another example in Scala:
 
 ```scala
+import com.esri.gdb._
+
 val path = "World.gdb"
 val name = "Countries"
 

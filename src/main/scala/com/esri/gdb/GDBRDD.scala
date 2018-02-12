@@ -17,6 +17,7 @@ case class GDBRDD(@transient sc: SparkContext,
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
     partition match {
       case part: GDBPartition => {
+        // println(s"getPartitions::startAtRow=${part.startAtRow} numRowsToRead=${part.numRowsToRead}")
         val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
         val index = GDBIndex(conf, gdbPath, part.hexName)
         val table = GDBTable(conf, gdbPath, part.hexName, wkid)
@@ -38,13 +39,13 @@ case class GDBRDD(@transient sc: SparkContext,
         val table = GDBTable(conf, gdbPath, catTab.toTableName, wkid)
         try {
           val maxRows = table.maxRows
+          // println(s"max rows=$maxRows")
           if (maxRows > 0) {
             val maxRowsPerPartition = 1 + maxRows / numPartitions
             var startAtRow = 0
             var index = 0
             while (startAtRow < maxRows) {
               val numRowsToRead = (maxRows - startAtRow) min maxRowsPerPartition
-              // println(s"getPartitions::$startAtRow $numRowsToRead")
               partitions append GDBPartition(index, catTab.toTableName, startAtRow, numRowsToRead)
               startAtRow += maxRowsPerPartition
               index += 1

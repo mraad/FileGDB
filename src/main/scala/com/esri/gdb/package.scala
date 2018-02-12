@@ -2,9 +2,16 @@ package com.esri
 
 import java.nio.ByteBuffer
 
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
 
 package object gdb {
+
+  implicit class SparkContextImplicits(sc: SparkContext) extends Serializable {
+    def gdb(path: String, name: String, numPartitions: Int = 8, wkid: Int = 4326): GDBRDD = {
+      GDBRDD(sc, path, name, numPartitions, wkid)
+    }
+  }
 
   implicit class SQLContextImplicits(sqlContext: SQLContext) extends Serializable {
     def gdb(path: String, name: String, numPartitions: Int = 8, wkid: Int = 4326): DataFrame = {
@@ -18,8 +25,8 @@ package object gdb {
       .format("com.esri.gdb")
       .option(GDBOptions.PATH, path)
       .option(GDBOptions.NAME, name)
-      .option(GDBOptions.NUM_PARTITIONS, numPartitions)
-      .option(GDBOptions.WKID, wkid)
+      .option(GDBOptions.NUM_PARTITIONS, numPartitions.toString)
+      .option(GDBOptions.WKID, wkid.toString)
       .load()
   }
 

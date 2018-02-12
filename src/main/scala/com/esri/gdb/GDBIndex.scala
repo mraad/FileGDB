@@ -21,7 +21,7 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
 
   def hasNext() = {
     seek = 0
-    while (seek == 0 && numRow < maxRows && dataInput.available > 0) {
+    while (seek == 0 && numRow < maxRows /*&& dataInput.available > 0*/ ) {
       byteBuffer.clear()
       dataInput.readFully(bytes, 0, numBytes)
       seek = byteBuffer.getInt
@@ -49,7 +49,6 @@ class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytes: Int) extend
     if (startRow + numRows > maxRows) {
       numRows = maxRows - startRow
     }
-    // println(s"GDBIndex::startRow=$startRow maxRows=$maxRows numRows=$numRows")
     new GDBIndexIterator(dataInput, startRow, numRows, numBytes)
   }
 
@@ -73,7 +72,6 @@ object GDBIndex extends Serializable {
     byteBuffer.getInt // n1024Blocks
     val maxRows = byteBuffer.getInt
     val indexSize = byteBuffer.getInt
-    // println(s"GDBIndex::maxRows=$maxRows")
     new GDBIndex(dataInput, maxRows, indexSize)
   }
 
