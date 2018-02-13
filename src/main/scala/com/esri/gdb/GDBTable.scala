@@ -60,7 +60,7 @@ object GDBTable extends Serializable {
       case EsriFieldType.INT32 => toFieldInt32(bb2, name, alias)
       case EsriFieldType.FLOAT32 => toFieldFloat32(bb2, name, alias)
       case EsriFieldType.FLOAT64 => toFieldFloat64(bb2, name, alias)
-      case EsriFieldType.DATETIME => toFieldDateTime(bb2, name, alias)
+      case EsriFieldType.TIMESTAMP => toFieldTimestamp(bb2, name, alias)
       case EsriFieldType.STRING => toFieldString(bb2, name, alias)
       case EsriFieldType.OID => toFieldOID(bb2, name, alias)
       case EsriFieldType.SHAPE => toFieldGeom(bb2, name, alias, geomType, geomProp, wkid)
@@ -172,7 +172,7 @@ object GDBTable extends Serializable {
     new FieldString(StructField(name, StringType, nullable, metadata))
   }
 
-  private def toFieldDateTime(bb: ByteBuffer, name: String, alias: String): GDBField = {
+  private def toFieldTimestamp(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
     bb.get // mask
@@ -180,7 +180,18 @@ object GDBTable extends Serializable {
       .putString("alias", alias)
       .putLong("len", len)
       .build()
-    new FieldDateTime(StructField(name, TimestampType, nullable, metadata))
+    new FieldTimestamp(StructField(name, TimestampType, nullable, metadata))
+  }
+
+  private def toFieldMillis(bb: ByteBuffer, name: String, alias: String): GDBField = {
+    val len = bb.get
+    val nullable = (bb.get & 1) == 1
+    bb.get // mask
+    val metadata = new MetadataBuilder()
+      .putString("alias", alias)
+      .putLong("len", len)
+      .build()
+    new FieldMillis(StructField(name, LongType, nullable, metadata))
   }
 
   private def toFieldOID(bb: ByteBuffer, name: String, alias: String): GDBField = {

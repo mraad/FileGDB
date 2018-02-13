@@ -69,7 +69,7 @@ class FieldUUID(val field: StructField) extends GDBField {
   }
 }
 
-class FieldDateTime(val field: StructField) extends GDBField {
+class FieldTimestamp(val field: StructField) extends GDBField {
   override type T = Timestamp
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Timestamp = {
@@ -77,7 +77,17 @@ class FieldDateTime(val field: StructField) extends GDBField {
     // convert days since 12/30/1899 to 1/1/1970
     val unixDays = numDays - 25569
     val millis = (unixDays * 1000 * 60 * 60 * 24).ceil.toLong
-    new Timestamp(millis)
+    new Timestamp(millis) // TimeZone is GMT !
+  }
+}
+
+class FieldMillis(val field: StructField) extends GDBField {
+  override type T = Long
+
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): Long = {
+    val numDays = byteBuffer.getDouble
+    val unixDays = numDays - 25569
+    (unixDays * 1000 * 60 * 60 * 24).ceil.toLong // TimeZone is GMT !
   }
 }
 

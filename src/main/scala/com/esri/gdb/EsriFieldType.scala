@@ -8,7 +8,7 @@ private object EsriFieldType {
   val FLOAT32 = 2
   val FLOAT64 = 3
   val STRING = 4
-  val DATETIME = 5
+  val TIMESTAMP = 5
   val OID = 6
   val SHAPE = 7
   val BINARY = 8

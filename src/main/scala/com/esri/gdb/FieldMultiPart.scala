@@ -23,6 +23,7 @@ class FieldMultiPart(val field: StructField,
       val coords = new ArrayBuffer[Double](numPoints * 2)
       val numParts = blob.getVarUInt.toInt
 
+      // Unused - for now !
       val xmin = blob.getVarUInt // xyScale + xOrig
       val ymin = blob.getVarUInt // xyScale + yOrig
       val xmax = blob.getVarUInt // xyScale + xmin

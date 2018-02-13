@@ -1,6 +1,7 @@
 package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 
 
@@ -54,6 +55,7 @@ object FileGDB extends Serializable {
     }
   }
 
+  // So it can be user by PySpark
   def schema(pathName: String, tableName: String, wkid: Int): StructType = {
     schema(new Configuration(), pathName, tableName, wkid) match {
       case Some(schema) => schema
@@ -61,8 +63,32 @@ object FileGDB extends Serializable {
     }
   }
 
-  // So it can be user by PySpark
   def schema(pathName: String, tableName: String): StructType = {
     schema(pathName, tableName, 4326)
+  }
+
+  def rows(pathName: String, tableName: String): Array[Row] = {
+    rows(new Configuration(), pathName, tableName, -1)
+  }
+
+  def rows(conf: Configuration, pathName: String, tableName: String, wkid: Int): Array[Row] = {
+    findTable(conf, pathName, tableName, wkid) match {
+      case Some(catRow) => {
+        val internalName = catRow.toTableName
+        val table = GDBTable(conf, pathName, internalName, wkid)
+        try {
+          val index = GDBIndex(conf, pathName, internalName)
+          try {
+            table.rows(index).toArray
+          } finally {
+            index.close()
+          }
+        }
+        finally {
+          table.close()
+        }
+      }
+      case _ => Array.empty
+    }
   }
 }

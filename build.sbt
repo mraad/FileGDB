@@ -1,8 +1,8 @@
 organization := "com.esri"
 
-name := "FileGDB"
+name := "filegdb"
 
-version := "0.2"
+version := "0.4"
 
 isSnapshot := true
 
