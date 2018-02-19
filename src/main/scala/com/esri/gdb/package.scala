@@ -32,7 +32,7 @@ package object gdb {
 
   implicit class ByteBufferImplicits(byteBuffer: ByteBuffer) {
 
-    implicit def getVarUInt() = {
+    implicit def getVarUInt(): Long = {
       var shift = 7
       var b: Long = byteBuffer.get
       var ret = b & 0x7FL
@@ -46,7 +46,7 @@ package object gdb {
       ret
     }
 
-    implicit def getVarInt() = {
+    implicit def getVarInt(): Long = {
       var shift = 7
       var b: Long = byteBuffer.get
       val isNeg = (b & 0x40L) != 0

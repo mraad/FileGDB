@@ -55,6 +55,7 @@ object GDBTable extends Serializable {
     }
     val alias = if (aliasLen > 0) aliasBuilder.toString else name
     val fieldType = bb2.get
+
     fieldType match {
       case EsriFieldType.INT16 => toFieldInt16(bb2, name, alias)
       case EsriFieldType.INT32 => toFieldInt32(bb2, name, alias)
@@ -67,7 +68,7 @@ object GDBTable extends Serializable {
       case EsriFieldType.BINARY => toFieldBinary(bb2, name, alias)
       case EsriFieldType.UUID | EsriFieldType.GUID => toFieldUUID(bb2, name, alias)
       case EsriFieldType.XML => toFieldXML(bb2, name, alias)
-      case _ => throw new RuntimeException(s"Field type $fieldType is not supported")
+      case _ => throw new RuntimeException(s"Field $name with type $fieldType is not supported")
     }
 
   }
@@ -90,7 +91,11 @@ object GDBTable extends Serializable {
   private def toFieldFloat32(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    bb.get // mask
+    var lenDefVal = bb.getVarUInt
+    while (lenDefVal > 0) {
+      bb.get()
+      lenDefVal -= 1
+    }
     val metadata = new MetadataBuilder()
       .putString("alias", alias)
       .putLong("len", len)
@@ -101,7 +106,11 @@ object GDBTable extends Serializable {
   private def toFieldFloat64(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    bb.get // mask
+    var lenDefVal = bb.getVarUInt
+    while (lenDefVal > 0) {
+      bb.get()
+      lenDefVal -= 1
+    }
     val metadata = new MetadataBuilder()
       .putString("alias", alias)
       .putLong("len", len)
@@ -112,7 +121,11 @@ object GDBTable extends Serializable {
   private def toFieldInt16(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    bb.get // mask
+    var lenDefVal = bb.getVarUInt
+    while (lenDefVal > 0) {
+      bb.get()
+      lenDefVal -= 1
+    }
     val metadata = new MetadataBuilder()
       .putString("alias", alias)
       .putLong("len", len)
@@ -123,7 +136,11 @@ object GDBTable extends Serializable {
   private def toFieldInt32(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    bb.get // mask
+    var lenDefVal = bb.getVarUInt
+    while (lenDefVal > 0) {
+      bb.get()
+      lenDefVal -= 1
+    }
     val metadata = new MetadataBuilder()
       .putString("alias", alias)
       .putLong("len", len)
@@ -164,7 +181,11 @@ object GDBTable extends Serializable {
   private def toFieldString(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.getInt
     val nullable = (bb.get & 1) == 1
-    bb.get // mask
+    var lenDefVal = bb.getVarUInt
+    while (lenDefVal > 0) {
+      bb.get()
+      lenDefVal -= 1
+    }
     val metadata = new MetadataBuilder()
       .putString("alias", alias)
       .putLong("len", len)
@@ -175,7 +196,11 @@ object GDBTable extends Serializable {
   private def toFieldTimestamp(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    bb.get // mask
+    var lenDefVal = bb.getVarUInt
+    while (lenDefVal > 0) {
+      bb.get()
+      lenDefVal -= 1
+    }
     val metadata = new MetadataBuilder()
       .putString("alias", alias)
       .putLong("len", len)
@@ -183,6 +208,7 @@ object GDBTable extends Serializable {
     new FieldTimestamp(StructField(name, TimestampType, nullable, metadata))
   }
 
+  /*
   private def toFieldMillis(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
@@ -193,6 +219,7 @@ object GDBTable extends Serializable {
       .build()
     new FieldMillis(StructField(name, LongType, nullable, metadata))
   }
+  */
 
   private def toFieldOID(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
