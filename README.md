@@ -88,6 +88,7 @@ finally
 
 ### References
 
+- https://github.com/rouault/dump_gdbtable/wiki/FGDB-Spec
 - https://github.com/minrk/findspark
 - https://blog.sicara.com/get-started-pyspark-jupyter-guide-tutorial-ae2fe84f594f
 - https://github.com/maxpoint/spylon

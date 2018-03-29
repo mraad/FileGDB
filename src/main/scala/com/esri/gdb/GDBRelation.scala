@@ -30,7 +30,7 @@ case class GDBRelation(gdbPath: String,
       }
       case _ => {
         LoggerFactory
-          .getLogger(GDBRelation.getClass)
+          .getLogger(getClass)
           .error(s"Cannot find '$gdbName' in $gdbPath, creating an empty schema !")
         StructType(Seq.empty[StructField])
       }

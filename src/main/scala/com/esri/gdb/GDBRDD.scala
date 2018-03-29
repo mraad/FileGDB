@@ -17,7 +17,7 @@ case class GDBRDD(@transient sc: SparkContext,
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
     partition match {
       case part: GDBPartition => {
-        // println(s"getPartitions::startAtRow=${part.startAtRow} numRowsToRead=${part.numRowsToRead}")
+        // println(s"${Console.YELLOW}getPartitions::startAtRow=${part.startAtRow} numRowsToRead=${part.numRowsToRead}${Console.RESET}")
         val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
         val index = GDBIndex(conf, gdbPath, part.hexName)
         val table = GDBTable(conf, gdbPath, part.hexName, wkid)

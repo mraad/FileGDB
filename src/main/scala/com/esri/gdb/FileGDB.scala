@@ -8,12 +8,14 @@ import org.apache.spark.sql.types.StructType
 object FileGDB extends Serializable {
 
   def listTables(conf: Configuration, pathName: String, wkid: Int): Array[NameIndex] = {
+    // println(s"${Console.YELLOW}List Tables...${Console.RESET}")
     val gdbIndex = GDBIndex(conf, pathName, "a00000001")
     try {
       val gdbTable = GDBTable(conf, pathName, "a00000001", wkid)
       try {
         val indexID = gdbTable.schema.fieldIndex("ID")
         val indexName = gdbTable.schema.fieldIndex("Name")
+        // println(s"${Console.YELLOW}$indexID $indexName${Console.RESET}")
         gdbTable
           .rows(gdbIndex, gdbTable.maxRows)
           .map(row => {

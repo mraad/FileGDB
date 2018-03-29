@@ -27,7 +27,7 @@ object GDBTable extends Serializable {
     val geometryProp = bb1.get & 0xFF // 0x40 for geometry with M, 0x80 for geometry with Z
     val numFields = bb1.getShort & 0xFFFF
 
-    // println(s"GDBTable::maxRows=$maxRows geometryType=$geometryType geometryProp=$geometryProp numFields=$numFields")
+    // println(f"${Console.YELLOW}GDBTable::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
 
     val bb2 = dataBuffer.readBytes(numBytes)
     val fields = Array.fill[GDBField](numFields) {
