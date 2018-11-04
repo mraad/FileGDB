@@ -4,7 +4,7 @@ target/
 project/target/
 metastore_db/
 SpatialDataFrameVizPackage.ipynb
-README2.md
 TestS3.ipynb
 derby.log
 jn.sh
+*.iml

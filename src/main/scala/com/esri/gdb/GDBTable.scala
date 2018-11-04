@@ -16,58 +16,60 @@ object GDBTable extends Serializable {
     val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtable").toString()
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
-    val maxRows = readHeader(dataBuffer)
+    val (maxRows, bodyBytes) = readHeader(dataBuffer)
 
-    val bb1 = dataBuffer.readBytes(4 + 4 + 4 + 2)
-    val numBytes = bb1.getInt
-    val i1 = bb1.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
-    val geometryType = bb1.get & 0xFF
-    val b2 = bb1.get
-    val b3 = bb1.get
-    val geometryProp = bb1.get & 0xFF // 0x40 for geometry with M, 0x80 for geometry with Z
-    val numFields = bb1.getShort & 0xFFFF
+    val bb = dataBuffer.readBytes(bodyBytes)
+    val numBytes = bb.getInt
+    println(s"$bodyBytes $numBytes")
+    val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
+    // println(s"gdb ver=$i1")
+    val geometryType = bb.get & 0x00FF
+    val b2 = bb.get
+    val b3 = bb.get
+    val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
+    val numFields = bb.getShort & 0x7FFF
 
-    // println(f"${Console.YELLOW}GDBTable::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
+    println(f"${Console.YELLOW}$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
 
-    val bb2 = dataBuffer.readBytes(numBytes)
+    // val bb2 = dataBuffer.readBytes(numBytes)
     val fields = Array.fill[GDBField](numFields) {
-      readField(bb2, geometryType, geometryProp, wkid)
+      readField(bb, geometryType, geometryProp, wkid)
     }
     new GDBTable(dataBuffer, maxRows, fields)
   }
 
-  private def readField(bb2: ByteBuffer, geomType: Int, geomProp: Int, wkid: Int): GDBField = {
-    val nameLen = bb2.get
+  private def readField(bb: ByteBuffer, geomType: Int, geomProp: Int, wkid: Int): GDBField = {
+    val nameLen = bb.get
     val nameBuilder = new StringBuilder(nameLen)
     var n = 0
     while (n < nameLen) {
-      nameBuilder.append(bb2.getChar)
+      nameBuilder.append(bb.getChar)
       n += 1
     }
     val name = nameBuilder.toString
 
-    val aliasLen = bb2.get
-    val aliasBuilder = new StringBuilder(nameLen)
+    val aliasLen = bb.get
+    val aliasBuilder = new StringBuilder(aliasLen)
     n = 0
     while (n < aliasLen) {
-      aliasBuilder.append(bb2.getChar)
+      aliasBuilder.append(bb.getChar)
       n += 1
     }
     val alias = if (aliasLen > 0) aliasBuilder.toString else name
-    val fieldType = bb2.get
-
+    val fieldType = bb.get
+    println(s"$nameLen $name $aliasLen $alias $fieldType")
     fieldType match {
-      case EsriFieldType.INT16 => toFieldInt16(bb2, name, alias)
-      case EsriFieldType.INT32 => toFieldInt32(bb2, name, alias)
-      case EsriFieldType.FLOAT32 => toFieldFloat32(bb2, name, alias)
-      case EsriFieldType.FLOAT64 => toFieldFloat64(bb2, name, alias)
-      case EsriFieldType.TIMESTAMP => toFieldTimestamp(bb2, name, alias)
-      case EsriFieldType.STRING => toFieldString(bb2, name, alias)
-      case EsriFieldType.OID => toFieldOID(bb2, name, alias)
-      case EsriFieldType.SHAPE => toFieldGeom(bb2, name, alias, geomType, geomProp, wkid)
-      case EsriFieldType.BINARY => toFieldBinary(bb2, name, alias)
-      case EsriFieldType.UUID | EsriFieldType.GUID => toFieldUUID(bb2, name, alias)
-      case EsriFieldType.XML => toFieldXML(bb2, name, alias)
+      case EsriFieldType.INT16 => toFieldInt16(bb, name, alias)
+      case EsriFieldType.INT32 => toFieldInt32(bb, name, alias)
+      case EsriFieldType.FLOAT32 => toFieldFloat32(bb, name, alias)
+      case EsriFieldType.FLOAT64 => toFieldFloat64(bb, name, alias)
+      case EsriFieldType.TIMESTAMP => toFieldTimestamp(bb, name, alias)
+      case EsriFieldType.STRING => toFieldString(bb, name, alias)
+      case EsriFieldType.OID => toFieldOID(bb, name, alias)
+      case EsriFieldType.SHAPE => toFieldGeom(bb, name, alias, geomType, geomProp, wkid)
+      case EsriFieldType.BINARY => toFieldBinary(bb, name, alias)
+      case EsriFieldType.UUID | EsriFieldType.GUID => toFieldUUID(bb, name, alias)
+      case EsriFieldType.XML => toFieldXML(bb, name, alias)
       case _ => throw new RuntimeException(s"Field $name with type $fieldType is not supported")
     }
 
@@ -75,17 +77,18 @@ object GDBTable extends Serializable {
 
   private def readHeader(dataBuffer: DataBuffer) = {
     val bb = dataBuffer.readBytes(40)
-    bb.getInt // signature TODO - throw exception if not correct signature
-    val numRows = bb.getInt // num rows
-    val h2 = bb.getInt
+    val sig = bb.getInt // signature TODO - throw exception if not correct signature
+    val numRows = bb.getInt
+    val bodyBytes = bb.getInt // number of packed bytes in the body
     val h3 = bb.getInt
     val h4 = bb.getInt
     val h5 = bb.getInt
-    val h6 = bb.getInt // file size - can be negative - maybe uint ?
+    val fileBytes = bb.getInt
     val h7 = bb.getInt
-    val h8 = bb.getInt
+    val headBytes = bb.getInt // 40
     val h9 = bb.getInt
-    numRows
+    // println(s"$sig $numRows $numBytes $h3 $h4 $h5 $fileBytes $h7 $headBytes $h9")
+    (numRows, fileBytes - 40)
   }
 
   private def toFieldFloat32(bb: ByteBuffer, name: String, alias: String): GDBField = {

@@ -6,7 +6,7 @@ import org.apache.hadoop.fs.FSDataInputStream
 
 class DataBuffer(dataInput: FSDataInputStream) extends AutoCloseable with Serializable {
 
-  private var bytes = new Array[Byte](1024)
+  private var bytes = new Array[Byte](4096)
   private var byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
 
   def readBytes(length: Int): ByteBuffer = {

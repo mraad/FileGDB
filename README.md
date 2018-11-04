@@ -46,7 +46,7 @@ pyspark\
  --num-executors 1\
  --driver-memory 16G\
  --executor-memory 16G\
- --packages com.esri:webmercator_2.11:1.3,com.esri:filegdb_2.11:0.4
+ --packages com.esri:webmercator_2.11:1.3,com.esri:filegdb_2.11:0.7
 ```
 
 Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) example notebooks.
