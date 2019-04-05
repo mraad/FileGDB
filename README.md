@@ -39,8 +39,9 @@ Assuming that the environment variable `SPARK_HOME` points to the location of a 
 
 ```bash
 export PATH=${SPARK_HOME}/bin:${PATH}
+export SPARK_LOCAL_IP=$(hostname)
 export PYSPARK_DRIVER_PYTHON=jupyter
-export PYSPARK_DRIVER_PYTHON_OPTS='notebook --NotebookApp.iopub_data_rate_limit=10000000'
+export PYSPARK_DRIVER_PYTHON_OPTS='notebook'
 pyspark\
  --master local[*]\
  --num-executors 1\
