@@ -124,6 +124,9 @@
         </profile>
         <profile>
             <id>spark-2.3</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <java.version>1.8</java.version>
                 <scala.compact>2.11</scala.compact>
@@ -134,9 +137,6 @@
         </profile>
         <profile>
             <id>spark-2.4</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <java.version>1.8</java.version>
                 <scala.compact>2.12</scala.compact>
