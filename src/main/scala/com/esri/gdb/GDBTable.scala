@@ -14,7 +14,7 @@ object GDBTable extends Serializable {
 
   def apply(conf: Configuration, path: String, name: String, wkid: Int): GDBTable = {
     val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtable").toString()
-    println(f"${Console.YELLOW}Opening '$filename'${Console.RESET}")
+    // println(f"${Console.YELLOW}Opening '$filename'${Console.RESET}")
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
     val (maxRows, bodyBytes) = readHeader(dataBuffer, filename)
@@ -33,7 +33,7 @@ object GDBTable extends Serializable {
         val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
         val numFields = bb.getShort & 0x7FFF
 
-        println(f"${Console.YELLOW}$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
+        // println(f"${Console.YELLOW}$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
         // val bb2 = dataBuffer.readBytes(numBytes)
         val fields = Array.fill[GDBField](numFields) {
           readField(bb, geometryType, geometryProp, wkid)
