@@ -17,11 +17,11 @@ case class GDBRDD(@transient sc: SparkContext,
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
     partition match {
       case part: GDBPartition => {
-        // println(s"${Console.YELLOW}getPartitions::startAtRow=${part.startAtRow} numRowsToRead=${part.numRowsToRead}${Console.RESET}")
+        log.debug(s"${Console.YELLOW}compute::startAtRow=${part.startAtRow} numRowsToRead=${part.numRowsToRead}${Console.RESET}")
         val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
         val index = GDBIndex(conf, gdbPath, part.hexName)
         val table = GDBTable(conf, gdbPath, part.hexName, wkid)
-        context.addTaskCompletionListener(_ => {
+        context.addTaskCompletionListener[Unit](_ => {
           table.close()
           index.close()
         })
@@ -39,9 +39,10 @@ case class GDBRDD(@transient sc: SparkContext,
         val table = GDBTable(conf, gdbPath, catTab.toTableName, wkid)
         try {
           val maxRows = table.maxRows
-          // println(s"max rows=$maxRows")
+          log.debug(s"max rows=$maxRows")
           if (maxRows > 0) {
             val maxRowsPerPartition = 1 + maxRows / numPartitions
+            log.debug(s"max rows per partition=$maxRowsPerPartition")
             var startAtRow = 0
             var index = 0
             while (startAtRow < maxRows) {

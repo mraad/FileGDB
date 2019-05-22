@@ -2,13 +2,13 @@ organization := "com.esri"
 
 name := "filegdb"
 
-version := "0.7"
+version := "0.10"
 
 isSnapshot := true
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.8"
 
-val sparkVersion = "2.3.1"
+val sparkVersion = "2.4.2"
 
 publishMavenStyle := true
 
@@ -23,5 +23,5 @@ assemblyJarName in assembly := s"${name.value}-${version.value}.jar"
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-  "org.scalatest" %% "scalatest" % "2.2.3" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.7" % "test"
 )

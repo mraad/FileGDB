@@ -14,26 +14,32 @@ object GDBTable extends Serializable {
 
   def apply(conf: Configuration, path: String, name: String, wkid: Int): GDBTable = {
     val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtable").toString()
+    println(f"${Console.YELLOW}Opening '$filename'${Console.RESET}")
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
-    val (maxRows, bodyBytes) = readHeader(dataBuffer)
+    val (maxRows, bodyBytes) = readHeader(dataBuffer, filename)
+    val fields = (maxRows, bodyBytes) match {
+      case (0, 0L) =>
+        Array.empty[GDBField]
+      case _ => {
+        val bb = dataBuffer.readBytes((bodyBytes & 0x7FFFFFFF).toInt) // Hack for now.
+        val numBytes = bb.getInt
+        // println(s"bodyByte=$bodyBytes numBytes=$numBytes")
+        val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
+        // println(s"gdb ver=$i1")
+        val geometryType = bb.get & 0x00FF
+        val b2 = bb.get
+        val b3 = bb.get
+        val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
+        val numFields = bb.getShort & 0x7FFF
 
-    val bb = dataBuffer.readBytes(bodyBytes)
-    val numBytes = bb.getInt
-    println(s"$bodyBytes $numBytes")
-    val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
-    // println(s"gdb ver=$i1")
-    val geometryType = bb.get & 0x00FF
-    val b2 = bb.get
-    val b3 = bb.get
-    val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
-    val numFields = bb.getShort & 0x7FFF
-
-    //    println(f"${Console.YELLOW}$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
-
-    // val bb2 = dataBuffer.readBytes(numBytes)
-    val fields = Array.fill[GDBField](numFields) {
-      readField(bb, geometryType, geometryProp, wkid)
+        println(f"${Console.YELLOW}$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields${Console.RESET}")
+        // val bb2 = dataBuffer.readBytes(numBytes)
+        val fields = Array.fill[GDBField](numFields) {
+          readField(bb, geometryType, geometryProp, wkid)
+        }
+        fields
+      }
     }
     new GDBTable(dataBuffer, maxRows, fields)
   }
@@ -57,7 +63,7 @@ object GDBTable extends Serializable {
     }
     val alias = if (aliasLen > 0) aliasBuilder.toString else name
     val fieldType = bb.get
-    println(s"$nameLen $name $aliasLen $alias $fieldType")
+    // println(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
     fieldType match {
       case EsriFieldType.INT16 => toFieldInt16(bb, name, alias)
       case EsriFieldType.INT32 => toFieldInt32(bb, name, alias)
@@ -75,20 +81,26 @@ object GDBTable extends Serializable {
 
   }
 
-  private def readHeader(dataBuffer: DataBuffer) = {
-    val bb = dataBuffer.readBytes(40)
-    val sig = bb.getInt // signature TODO - throw exception if not correct signature
-    val numRows = bb.getInt
-    val bodyBytes = bb.getInt // number of packed bytes in the body
-    val h3 = bb.getInt
-    val h4 = bb.getInt
-    val h5 = bb.getInt
-    val fileBytes = bb.getInt
-    val h7 = bb.getInt
-    val headBytes = bb.getInt // 40
-    val h9 = bb.getInt
-    // println(s"$sig $numRows $numBytes $h3 $h4 $h5 $fileBytes $h7 $headBytes $h9")
-    (numRows, fileBytes - 40)
+  private def readHeader(dataBuffer: DataBuffer, filename: String) = {
+    try {
+      val bb = dataBuffer.readBytes(40)
+      val sig = bb.getInt // signature TODO - throw exception if not correct signature
+      val numRows = bb.getInt
+      val bodyBytes = bb.getUInt // number of packed bytes in the body
+      val h3 = bb.getInt
+      val h4 = bb.getInt
+      val h5 = bb.getInt
+      val fileBytes = bb.getUInt
+      val h7 = bb.getInt
+      val headBytes = bb.getInt // 40
+      val h9 = bb.getInt
+      // println(s"$sig $numRows $bodyBytes $h3 $h4 $h5 $fileBytes $h7 $headBytes $h9")
+      (numRows, fileBytes - 40L)
+    } catch {
+      case t: Throwable =>
+        println(s"${Console.RED}Exception (${t.toString}) thrown when reading '$filename'${Console.RESET}")
+        (0, 0L)
+    }
   }
 
   private def toFieldFloat32(bb: ByteBuffer, name: String, alias: String): GDBField = {

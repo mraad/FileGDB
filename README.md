@@ -30,7 +30,7 @@ Create a Python 3 [conda](https://conda.io/docs/) environment:
 
 ```bash
 conda create --name arcgis
-source activate arcgis
+conda activate arcgis
 conda install -c esri arcgis
 conda install matplotlib
 ```
@@ -47,7 +47,7 @@ pyspark\
  --num-executors 1\
  --driver-memory 16G\
  --executor-memory 16G\
- --packages com.esri:webmercator_2.11:1.3,com.esri:filegdb_2.11:0.7
+ --packages com.esri:webmercator_2.11:1.4,com.esri:filegdb_2.12:0.10
 ```
 
 Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) example notebooks.

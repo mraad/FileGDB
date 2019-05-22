@@ -5,7 +5,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>filegdb</artifactId>
-    <version>0.7</version>
+    <version>0.10</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -30,20 +30,11 @@
     </dependencies>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>net.alchim31.maven</groupId>
-                    <artifactId>scala-maven-plugin</artifactId>
-                    <version>3.4.2</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>3.1.2</version>
                 <executions>
                     <execution>
                         <goals>
@@ -58,7 +49,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>3.4.2</version>
+                <version>4.0.2</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -133,14 +124,24 @@
         </profile>
         <profile>
             <id>spark-2.3</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <java.version>1.8</java.version>
                 <scala.compact>2.11</scala.compact>
                 <scala.version>${scala.compact}.8</scala.version>
                 <spark.version>2.3.1</spark.version>
+                <spark.scope>provided</spark.scope>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-2.4</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <java.version>1.8</java.version>
+                <scala.compact>2.12</scala.compact>
+                <scala.version>${scala.compact}.8</scala.version>
+                <spark.version>2.4.2</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>

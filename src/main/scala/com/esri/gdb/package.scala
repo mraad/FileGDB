@@ -60,6 +60,15 @@ package object gdb {
       }
       if (isNeg) -ret else ret
     }
+
+    implicit def getUInt(): Long = {
+      val b1 = byteBuffer.get & 0xFFL
+      val b2 = byteBuffer.get & 0xFFL
+      val b3 = byteBuffer.get & 0xFFL
+      val b4 = byteBuffer.get & 0xFFL
+      (b4 << 24 | b3 << 16 | b2 << 8 | b1) & 0xFFFFFFFFL
+    }
+
   }
 
 }
