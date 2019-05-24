@@ -70,7 +70,9 @@
                     <scalaCompatVersion>${scala.compact}</scalaCompatVersion>
                     <scalaVersion>${scala.version}</scalaVersion>
                     <recompileMode>incremental</recompileMode>
+                    <!--
                     <useZincServer>false</useZincServer>
+                    -->
                 </configuration>
             </plugin>
             <plugin>
