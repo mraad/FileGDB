@@ -42,12 +42,15 @@ export PATH=${SPARK_HOME}/bin:${PATH}
 export SPARK_LOCAL_IP=$(hostname)
 export PYSPARK_DRIVER_PYTHON=jupyter
 export PYSPARK_DRIVER_PYTHON_OPTS='notebook'
+export GDB_MIN=2.11 # Spark 2.3
+# export GDB_MIN=2.12 # Spark 2.4
+export GDB_VER=0.11.0
 pyspark\
  --master local[*]\
  --num-executors 1\
  --driver-memory 16G\
  --executor-memory 16G\
- --packages com.esri:webmercator_2.11:1.4,com.esri:filegdb_2.12:0.10.2
+ --packages com.esri:webmercator_${GDB_MIN}:1.4,com.esri:filegdb_${GDB_MIN}:${GDB_VER}
 ```
 
 Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) example notebooks.

@@ -17,19 +17,19 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
 
   private var objectID = startID
   private var numRow = 0
-  private var seek = 0
+  private var seek = 0L
 
   def hasNext() = {
-    seek = 0
-    while (seek == 0 && numRow < maxRows /*&& dataInput.available > 0*/ ) {
+    seek = 0L
+    while (seek == 0L && numRow < maxRows /*&& dataInput.available > 0*/ ) {
       byteBuffer.clear()
       dataInput.readFully(bytes, 0, numBytes)
-      seek = byteBuffer.getInt
+      seek = byteBuffer.getUInt // 2019-05-29
       objectID += 1
-      if (seek > 0)
+      if (seek > 0L)
         numRow += 1
     }
-    seek > 0
+    seek > 0L
   }
 
   def next() = {
@@ -37,11 +37,11 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
   }
 }
 
-class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytes: Int) extends AutoCloseable with Serializable {
+class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytesPerRow: Int) extends AutoCloseable with Serializable {
 
   def indicies(numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[GDBIndexRow] = {
     val startRow = startAtRow min maxRows
-    dataInput.seek(16 + startRow * numBytes)
+    dataInput.seek(16L + startRow * numBytesPerRow)
     var numRows = if (numRowsToRead == -1)
       maxRows
     else
@@ -49,7 +49,7 @@ class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytes: Int) extend
     if (startRow + numRows > maxRows) {
       numRows = maxRows - startRow
     }
-    new GDBIndexIterator(dataInput, startRow, numRows, numBytes)
+    new GDBIndexIterator(dataInput, startRow, numRows, numBytesPerRow)
   }
 
   override def close(): Unit = {
@@ -71,8 +71,9 @@ object GDBIndex extends Serializable {
     byteBuffer.getInt // signature
     byteBuffer.getInt // n1024Blocks
     val maxRows = byteBuffer.getInt
-    val indexSize = byteBuffer.getInt
-    new GDBIndex(dataInput, maxRows, indexSize)
+    // println(s"${Console.YELLOW}maxRows = $maxRows${Console.RESET}")
+    val numBytesPerRow = byteBuffer.getInt
+    new GDBIndex(dataInput, maxRows, numBytesPerRow)
   }
 
 }
