@@ -2,11 +2,13 @@ organization := "com.esri"
 
 name := "filegdb"
 
-version := "0.11.0"
+version := "0.11.1"
 
 isSnapshot := true
 
-scalaVersion := "2.12.8"
+// scalaVersion := "2.12.8"
+crossScalaVersions := Seq("2.11.8", "2.12.8")
+
 
 val sparkVersion = "2.4.2"
 

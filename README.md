@@ -44,7 +44,7 @@ export PYSPARK_DRIVER_PYTHON=jupyter
 export PYSPARK_DRIVER_PYTHON_OPTS='notebook'
 export GDB_MIN=2.11 # Spark 2.3
 # export GDB_MIN=2.12 # Spark 2.4
-export GDB_VER=0.11.0
+export GDB_VER=0.11.1
 pyspark\
  --master local[*]\
  --num-executors 1\
@@ -97,3 +97,4 @@ finally
 - https://blog.sicara.com/get-started-pyspark-jupyter-guide-tutorial-ae2fe84f594f
 - https://github.com/maxpoint/spylon
 - https://github.com/jupyter-scala/jupyter-scala#quick-start
+- https://github.com/Valassis-Digital-Media/spylon-kernel/blob/master/examples/basic_example.ipynb

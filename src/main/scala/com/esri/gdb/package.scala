@@ -66,7 +66,8 @@ package object gdb {
       val b2 = byteBuffer.get & 0xFFL
       val b3 = byteBuffer.get & 0xFFL
       val b4 = byteBuffer.get & 0xFFL
-      (b4 << 24 | b3 << 16 | b2 << 8 | b1) & 0xFFFFFFFFL
+      // (b4 << 24 | b3 << 16 | b2 << 8 | b1) & 0xFFFFFFFFL
+      b4 << 24 | b3 << 16 | b2 << 8 | b1
     }
 
   }
