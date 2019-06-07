@@ -5,11 +5,15 @@ import java.nio.ByteBuffer
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
-class FieldMultiPart(val field: StructField,
-                     xOrig: Double,
-                     yOrig: Double,
-                     xyScale: Double
-                    ) extends FieldBytes {
+class FieldMultiPartZM(val field: StructField,
+                       xOrig: Double,
+                       yOrig: Double,
+                       xyScale: Double,
+                       zOrig: Double,
+                       zScale: Double,
+                       mOrig: Double,
+                       mScale: Double
+                      ) extends FieldBytes {
 
   override type T = Row
 
@@ -18,7 +22,7 @@ class FieldMultiPart(val field: StructField,
     val geomType = blob.getVarUInt
     val numPoints = blob.getVarUInt.toInt
     if (numPoints > 0) {
-      val coords = new Array[Double](numPoints * 2)
+      val coords = new Array[Double](numPoints * 4)
       val numParts = blob.getVarUInt.toInt
 
       // Unused - for now !
@@ -29,8 +33,12 @@ class FieldMultiPart(val field: StructField,
 
       var dx = 0L
       var dy = 0L
+      var dz = 0L
+      var dm = 0L
       var ix = 0
       var iy = 1
+      var iz = 2
+      var im = 3
 
       if (numParts > 1) {
         val parts = new Array[Int](numParts)
@@ -54,11 +62,25 @@ class FieldMultiPart(val field: StructField,
             dy += blob.getVarInt
             coords(ix) = dx / xyScale + xOrig
             coords(iy) = dy / xyScale + yOrig
-            ix += 2
-            iy += 2
+            ix += 4
+            iy += 4
             n += 1
           }
           p += 1
+        }
+        n = 0
+        while (n < numPoints) {
+          dz += blob.getVarInt
+          coords(iz) = dz / zScale + zOrig
+          iz += 4
+          n += 1
+        }
+        n = 0
+        while (n < numPoints) {
+          dm += blob.getVarInt
+          coords(im) = dm / mScale + mOrig
+          im += 4
+          n += 1
         }
         Row(parts, coords)
       }
@@ -69,8 +91,22 @@ class FieldMultiPart(val field: StructField,
           dy += blob.getVarInt
           coords(ix) = dx / xyScale + xOrig
           coords(iy) = dy / xyScale + yOrig
-          ix += 2
-          iy += 2
+          ix += 4
+          iy += 4
+          n += 1
+        }
+        n = 0
+        while (n < numPoints) {
+          dz += blob.getVarInt
+          coords(iz) = dz / zScale + zOrig
+          iz += 4
+          n += 1
+        }
+        n = 0
+        while (n < numPoints) {
+          dm += blob.getVarInt
+          coords(im) = dm / mScale + mOrig
+          im += 4
           n += 1
         }
         Row(Array(numPoints), coords)
@@ -81,16 +117,20 @@ class FieldMultiPart(val field: StructField,
   }
 }
 
-object FieldMultiPart extends Serializable {
+object FieldMultiPartZM extends Serializable {
   def apply(name: String,
             nullable: Boolean,
             metadata: Metadata,
             xOrig: Double,
             yOrig: Double,
-            xyScale: Double
-           ): FieldMultiPart = {
-    new FieldMultiPart(StructField(name,
+            xyScale: Double,
+            zOrig: Double,
+            zScale: Double,
+            mOrig: Double,
+            mScale: Double
+           ): FieldMultiPartZM = {
+    new FieldMultiPartZM(StructField(name,
       StructType(Seq(StructField("parts", ArrayType(IntegerType), true), StructField("coords", ArrayType(DoubleType), true))
-      ), nullable, metadata), xOrig, yOrig, xyScale)
+      ), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
   }
 }

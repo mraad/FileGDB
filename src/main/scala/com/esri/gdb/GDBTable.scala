@@ -255,11 +255,13 @@ object GDBTable extends Serializable {
     bb.get // len
     val nullable = (bb.get & 1) == 1
 
+    // Spatial Reference WKT
     val srLen = bb.getShort
     val srChars = srLen / 2
     val stringBuilder = new StringBuilder(srChars)
     0 until srChars foreach (_ => stringBuilder.append(bb.getChar))
-    val sr = stringBuilder.toString // not used :-(
+    // val sr = stringBuilder.toString // not used :-(
+    // println(sr)
 
     val zAndM = bb.get
     val (hasZ, hasM) = zAndM match {
@@ -268,7 +270,7 @@ object GDBTable extends Serializable {
       case _ => (false, false)
     }
 
-    // println(s"geometryType=$geometryType zAndM=$zAndM hasZ=$hasZ hasM=$hasM geomProp=$geometryProp")
+    // println(f"geometryType=$geometryType%X zAndM=$zAndM hasZ=$hasZ hasM=$hasM geomProp=$geometryProp%X")
 
     val xOrig = bb.getDouble
     val yOrig = bb.getDouble
@@ -335,8 +337,8 @@ object GDBTable extends Serializable {
       case 3 =>
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          // case 0x40 => FieldPolylineMType(name, nullAllowed, xOrig, yOrig, mOrig, xyScale, mScale, metadata)
-          case _ => throw new RuntimeException("Cannot parse (yet) polylines with Z value :-(")
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
         }
       case 4 | 5 =>
         FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
