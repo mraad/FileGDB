@@ -44,7 +44,7 @@ export PYSPARK_DRIVER_PYTHON=jupyter
 export PYSPARK_DRIVER_PYTHON_OPTS='notebook'
 export GDB_MIN=2.11 # Spark 2.3
 # export GDB_MIN=2.12 # Spark 2.4
-export GDB_VER=0.11.1
+export GDB_VER=0.12.4
 pyspark\
  --master local[*]\
  --num-executors 1\
