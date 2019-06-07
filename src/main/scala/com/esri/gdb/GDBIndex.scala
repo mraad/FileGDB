@@ -9,10 +9,10 @@ import org.apache.hadoop.fs.{FSDataInputStream, Path}
 private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
                                     startID: Int,
                                     maxRows: Int,
-                                    numBytes: Int
+                                    numBytesPerRow: Int
                                    ) extends Iterator[GDBIndexRow] with Serializable {
 
-  private val bytes = new Array[Byte](numBytes)
+  private val bytes = new Array[Byte](numBytesPerRow)
   private val byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
 
   private var objectID = startID
@@ -23,7 +23,7 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
     seek = 0L
     while (seek == 0L && numRow < maxRows /*&& dataInput.available > 0*/ ) {
       byteBuffer.clear()
-      dataInput.readFully(bytes, 0, numBytes)
+      dataInput.readFully(bytes, 0, numBytesPerRow)
       seek = byteBuffer.getUInt // 2019-05-29
       objectID += 1
       if (seek > 0L)
@@ -37,6 +37,39 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
   }
 }
 
+/**
+  * Class to cache GDB index rows.
+  * This "hopefully" avoids multiple disk seeks while reading GDB data rows.  TODO - Perform testing, does this matter with SSD ?
+  *
+  * @param dataInput      Hadoop FS input stream.
+  * @param startID        the starting row ID
+  * @param maxRows        the number of rows to read.
+  * @param numBytesPerRow the number of bytes per index row.
+  */
+private[gdb] class GDBCacheIterator(dataInput: FSDataInputStream,
+                                    startID: Int,
+                                    maxRows: Int,
+                                    numBytesPerRow: Int) extends Iterator[GDBIndexRow] with Serializable {
+  private var rowIdx = 0
+  private val rowArr = new Array[GDBIndexRow](maxRows)
+
+  private val iter = new GDBIndexIterator(dataInput, startID, maxRows, numBytesPerRow)
+  while (iter.hasNext) {
+    rowArr(rowIdx) = iter.next
+    rowIdx += 1
+  }
+  rowIdx = 0
+
+  override def hasNext: Boolean = rowIdx < maxRows
+
+  override def next(): GDBIndexRow = {
+    val r = rowArr(rowIdx)
+    rowIdx += 1
+    r
+  }
+}
+
+
 class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytesPerRow: Int) extends AutoCloseable with Serializable {
 
   def indicies(numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[GDBIndexRow] = {
@@ -49,7 +82,7 @@ class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytesPerRow: Int) 
     if (startRow + numRows > maxRows) {
       numRows = maxRows - startRow
     }
-    new GDBIndexIterator(dataInput, startRow, numRows, numBytesPerRow)
+    new GDBCacheIterator(dataInput, startRow, numRows, numBytesPerRow)
   }
 
   override def close(): Unit = {
