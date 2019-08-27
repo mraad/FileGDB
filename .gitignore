@@ -1,10 +1,10 @@
 .idea/
 .ipynb_checkpoints/
+data/output/
 target/
 project/target/
+spark-warehouse/
 metastore_db/
-SpatialDataFrameVizPackage.ipynb
-TestS3.ipynb
 derby.log
 jn.sh
 *.iml

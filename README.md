@@ -90,6 +90,12 @@ finally
 - Add option to return geometry envelope only.
 - Add option to return timestamp field as millis long.
 
+### Notes To Self
+
+- Install JDK-1.8
+- Set path to %JAVA_HOME%\bin,%JAVA_HOME%\jre\bin
+- keytool -import -alias cacerts -keystore cacerts -file C:\Windows\System32\documentdbemulatorcert.cer
+
 ### References
 
 - https://github.com/rouault/dump_gdbtable/wiki/FGDB-Spec
