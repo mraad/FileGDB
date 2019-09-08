@@ -28,8 +28,13 @@ The best demonstration of the usage of this implementation is with [PySpark Data
 
 Create a Python 3 [conda](https://conda.io/docs/) environment:
 
+```python
+conda remove --yes --all --name py36
+conda create --yes -n py36 -c conda-forge python=3.6 openjdk=8 findspark py4j
+```
+
 ```bash
-conda create --name arcgis
+conda create --name arcgis python=3.6
 conda activate arcgis
 conda install -c esri arcgis
 conda install matplotlib
