@@ -109,3 +109,5 @@ finally
 - https://github.com/maxpoint/spylon
 - https://github.com/jupyter-scala/jupyter-scala#quick-start
 - https://github.com/Valassis-Digital-Media/spylon-kernel/blob/master/examples/basic_example.ipynb
+- https://ncar.github.io/PySpark4Climate/tutorials/Oceanic-Ni%C3%B1o-Index/
+- https://medium.com/@marcovillarreal_40011/creating-a-spark-standalone-cluster-with-docker-and-docker-compose-ba9d743a157f

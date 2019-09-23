@@ -83,18 +83,24 @@ object GDBTable extends Serializable {
   private def readHeader(dataBuffer: DataBuffer, filename: String) = {
     try {
       val bb = dataBuffer.readBytes(40)
-      val sig = bb.getInt // signature TODO - throw exception if not correct signature
-      val numRows = bb.getInt
-      val bodyBytes = bb.getUInt // number of packed bytes in the body
-      val h3 = bb.getInt
-      val h4 = bb.getInt
-      val h5 = bb.getInt
-      val fileBytes = bb.getUInt
-      val h7 = bb.getInt
-      val headBytes = bb.getInt // 40
-      val h9 = bb.getInt
-      // println(s"$sig $numRows $bodyBytes $h3 $h4 $h5 $fileBytes $h7 $headBytes $h9")
-      (numRows, fileBytes - 40L)
+      val sig = bb.getInt // signature
+      if (sig == 3) {
+        val numRows = bb.getInt
+        val bodyBytes = bb.getUInt // number of packed bytes in the body
+        val h3 = bb.getInt
+        val h4 = bb.getInt
+        val h5 = bb.getInt
+        val fileBytes = bb.getUInt
+        val h7 = bb.getInt
+        val headBytes = bb.getInt // 40
+        val h9 = bb.getInt
+        // println(s"sig=$sig numRows=$numRows bodyBytes=$bodyBytes $h3 $h4 $h5 fileBytes=$fileBytes $h7 headBytes=$headBytes $h9")
+        (numRows, fileBytes - 40L)
+      }
+      else {
+        println(f"${Console.RED}Invalid signature for '$filename'.  Is the layer compressed ?${Console.RESET}")
+        (0, 0L)
+      }
     } catch {
       case t: Throwable =>
         println(s"${Console.RED}Exception (${t.toString}) thrown when reading '$filename'${Console.RESET}")
