@@ -66,10 +66,27 @@ package object gdb {
       val b2 = byteBuffer.get & 0xFFL
       val b3 = byteBuffer.get & 0xFFL
       val b4 = byteBuffer.get & 0xFFL
-      // (b4 << 24 | b3 << 16 | b2 << 8 | b1) & 0xFFFFFFFFL
       b4 << 24 | b3 << 16 | b2 << 8 | b1
     }
 
+    implicit def getUInt5(): Long = {
+      val b1 = byteBuffer.get & 0xFFL
+      val b2 = byteBuffer.get & 0xFFL
+      val b3 = byteBuffer.get & 0xFFL
+      val b4 = byteBuffer.get & 0xFFL
+      val b5 = byteBuffer.get & 0xFFL
+      b5 << 32 | b4 << 24 | b3 << 16 | b2 << 8 | b1
+    }
+
+    implicit def getUInt6(): Long = {
+      val b1 = byteBuffer.get & 0xFFL
+      val b2 = byteBuffer.get & 0xFFL
+      val b3 = byteBuffer.get & 0xFFL
+      val b4 = byteBuffer.get & 0xFFL
+      val b5 = byteBuffer.get & 0xFFL
+      val b6 = byteBuffer.get & 0xFFL
+      b6 << 40 | b5 << 32 | b4 << 24 | b3 << 16 | b2 << 8 | b1
+    }
   }
 
 }

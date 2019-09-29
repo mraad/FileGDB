@@ -7,14 +7,17 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 
 object GDBTable extends Serializable {
 
+  private val logger = LoggerFactory.getLogger(getClass)
+
   def apply(conf: Configuration, path: String, name: String, wkid: Int): GDBTable = {
     val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtable").toString()
-    // println(f"${Console.YELLOW}Opening '$filename'${Console.RESET}")
+    logger.debug(f"Opening '$filename'")
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
     val (maxRows, bodyBytes) = readHeader(dataBuffer, filename)
@@ -26,13 +29,13 @@ object GDBTable extends Serializable {
         val numBytes = bb.getInt
         // println(s"bodyByte=$bodyBytes numBytes=$numBytes")
         val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
-        // println(s"gdb ver=$i1")
+        logger.debug(s"gdb ver=$gdbVer")
         val geometryType = bb.get & 0x00FF
         val b2 = bb.get
         val b3 = bb.get
         val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
         val numFields = bb.getShort & 0x7FFF
-        // println(f"${Console.YELLOW}$name::maxRows = $maxRows geometryType = $geometryType%02X geometryProp = $geometryProp%02X numFields = $numFields${Console.RESET}")
+        logger.debug(f"$name::maxRows = $maxRows geometryType = $geometryType%02X geometryProp = $geometryProp%02X numFields = $numFields")
         // val bb2 = dataBuffer.readBytes(numBytes)
         val fields = Array.fill[GDBField](numFields) {
           readField(bb, geometryType, geometryProp, wkid)
@@ -62,7 +65,7 @@ object GDBTable extends Serializable {
     }
     val alias = if (aliasLen > 0) aliasBuilder.toString else name
     val fieldType = bb.get
-    // println(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
+    logger.debug(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
     fieldType match {
       case EsriFieldType.INT16 => toFieldInt16(bb, name, alias)
       case EsriFieldType.INT32 => toFieldInt32(bb, name, alias)
@@ -98,12 +101,12 @@ object GDBTable extends Serializable {
         (numRows, fileBytes - 40L)
       }
       else {
-        println(f"${Console.RED}Invalid signature for '$filename'.  Is the layer compressed ?${Console.RESET}")
+        logger.warn(f"${Console.RED}Invalid signature for '$filename'.  Is the table compressed ?${Console.RESET}")
         (0, 0L)
       }
     } catch {
       case t: Throwable =>
-        println(s"${Console.RED}Exception (${t.toString}) thrown when reading '$filename'${Console.RESET}")
+        logger.error(filename, t)
         (0, 0L)
     }
   }

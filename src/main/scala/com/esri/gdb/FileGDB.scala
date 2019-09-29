@@ -5,6 +5,19 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 
 
+class FileGDB(index: GDBIndex, table: GDBTable) extends AutoCloseable with Serializable {
+  def schema(): StructType = {
+    table.schema
+  }
+
+  def rows(numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[Row] = table.rows(index, numRowsToRead, startAtRow)
+
+  override def close(): Unit = {
+    table.close()
+    index.close()
+  }
+}
+
 object FileGDB extends Serializable {
 
   def listTables(conf: Configuration, pathName: String, wkid: Int): Array[NameIndex] = {
@@ -91,6 +104,18 @@ object FileGDB extends Serializable {
         }
       }
       case _ => Array.empty
+    }
+  }
+
+  def apply(pathName: String, tableName: String, conf: Configuration = new Configuration(), wkid: Int = 4326): Option[FileGDB] = {
+    findTable(conf, pathName, tableName, wkid) match {
+      case Some(catRow) => {
+        val internalName = catRow.toTableName
+        val index = GDBIndex(conf, pathName, internalName)
+        val table = GDBTable(conf, pathName, internalName, wkid)
+        Some(new FileGDB(index, table))
+      }
+      case _ => None
     }
   }
 }

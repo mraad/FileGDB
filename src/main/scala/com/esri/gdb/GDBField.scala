@@ -16,6 +16,8 @@ trait GDBField extends Serializable {
   def nullable(): Boolean = field.nullable
 
   def readValue(byteBuffer: ByteBuffer, oid: Int): T
+
+  def readNull(): Any
 }
 
 class FieldFloat32(val field: StructField) extends GDBField {
@@ -24,6 +26,8 @@ class FieldFloat32(val field: StructField) extends GDBField {
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Float = {
     byteBuffer.getFloat
   }
+
+  def readNull(): Float = null.asInstanceOf[Float]
 }
 
 class FieldFloat64(val field: StructField) extends GDBField {
@@ -32,6 +36,8 @@ class FieldFloat64(val field: StructField) extends GDBField {
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Double = {
     byteBuffer.getDouble
   }
+
+  def readNull(): Double = null.asInstanceOf[Double]
 }
 
 class FieldInt16(val field: StructField) extends GDBField {
@@ -40,6 +46,8 @@ class FieldInt16(val field: StructField) extends GDBField {
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Short = {
     byteBuffer.getShort
   }
+
+  def readNull(): Short = null.asInstanceOf[Short]
 }
 
 class FieldInt32(val field: StructField) extends GDBField {
@@ -48,12 +56,16 @@ class FieldInt32(val field: StructField) extends GDBField {
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Int = {
     byteBuffer.getInt
   }
+
+  def readNull(): Int = null.asInstanceOf[Int]
 }
 
 class FieldUUID(val field: StructField) extends GDBField {
   override type T = String
 
   private val b = new Array[Byte](16)
+
+  def readNull(): String = null.asInstanceOf[String]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     var n = 0
@@ -72,6 +84,8 @@ class FieldUUID(val field: StructField) extends GDBField {
 class FieldTimestamp(val field: StructField) extends GDBField {
   override type T = Timestamp
 
+  def readNull(): Timestamp = null.asInstanceOf[Timestamp]
+
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Timestamp = {
     val numDays = byteBuffer.getDouble
     // convert days since 12/30/1899 to 1/1/1970
@@ -84,6 +98,8 @@ class FieldTimestamp(val field: StructField) extends GDBField {
 class FieldMillis(val field: StructField) extends GDBField {
   override type T = Long
 
+  def readNull(): Long = null.asInstanceOf[Long]
+
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Long = {
     val numDays = byteBuffer.getDouble
     val unixDays = numDays - 25569
@@ -93,6 +109,8 @@ class FieldMillis(val field: StructField) extends GDBField {
 
 class FieldOID(val field: StructField) extends GDBField {
   override type T = Int
+
+  def readNull(): Int = null.asInstanceOf[Int]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Int = oid
 }
@@ -123,6 +141,8 @@ abstract class FieldBytes extends GDBField {
 class FieldBinary(val field: StructField) extends FieldBytes {
   override type T = ByteBuffer
 
+  def readNull(): ByteBuffer = null.asInstanceOf[ByteBuffer]
+
   override def readValue(byteBuffer: ByteBuffer, oid: Int): ByteBuffer = {
     getByteBuffer(byteBuffer)
   }
@@ -130,6 +150,8 @@ class FieldBinary(val field: StructField) extends FieldBytes {
 
 class FieldString(val field: StructField) extends FieldBytes {
   override type T = String
+
+  def readNull(): String = null.asInstanceOf[String]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     val numBytes = fillVarBytes(byteBuffer)
@@ -139,6 +161,8 @@ class FieldString(val field: StructField) extends FieldBytes {
 
 class FieldGeomNoop(val field: StructField) extends FieldBytes {
   override type T = String
+
+  def readNull(): String = null.asInstanceOf[String]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     throw new RuntimeException("Should not have a NOOP geometry !")
