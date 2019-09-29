@@ -48,11 +48,8 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
     while (seek == 0L && numRow < maxRows /*&& dataInput.available > 0*/ ) {
       byteBuffer.clear()
       dataInput.readFully(bytes, 0, numBytesPerRow)
-      // seek = byteBuffer.getUInt // 2019-05-29
-      seek = seekReader.readSeek(byteBuffer)
+      seek = seekReader.readSeek(byteBuffer) // 0 value indicates that the row is deleted.
       numRow += 1 // Includes deleted rows
-      //      if (seek > 0L) {
-      //      }
     }
     objectID += 1
     seek > 0L
