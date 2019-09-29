@@ -49,7 +49,7 @@ export PYSPARK_DRIVER_PYTHON=jupyter
 export PYSPARK_DRIVER_PYTHON_OPTS='notebook'
 export GDB_MIN=2.11 # Spark 2.3
 # export GDB_MIN=2.12 # Spark 2.4
-export GDB_VER=0.12.4
+export GDB_VER=0.18
 pyspark\
  --master local[*]\
  --num-executors 1\
@@ -94,6 +94,8 @@ finally
 - Add option to skip reading the geometry.
 - Add option to return geometry envelope only.
 - Add option to return timestamp field as millis long.
+- Read geometry as WKB.
+- Add geometry extent as subfields to `Shape`.
 
 ### Notes To Self
 
