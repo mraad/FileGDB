@@ -1,8 +1,10 @@
 package com.esri.gdb
 
+import com.esri.gdb.GDBTable.getClass
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
+import org.slf4j.LoggerFactory
 
 
 class FileGDB(index: GDBIndex, table: GDBTable) extends AutoCloseable with Serializable {
@@ -20,20 +22,23 @@ class FileGDB(index: GDBIndex, table: GDBTable) extends AutoCloseable with Seria
 
 object FileGDB extends Serializable {
 
+  private val logger = LoggerFactory.getLogger(getClass)
+
   def listTables(conf: Configuration, pathName: String, wkid: Int): Array[NameIndex] = {
-    // println(s"${Console.YELLOW}List Tables...${Console.RESET}")
     val gdbIndex = GDBIndex(conf, pathName, "a00000001")
     try {
       val gdbTable = GDBTable(conf, pathName, "a00000001", wkid)
       try {
         val indexID = gdbTable.schema.fieldIndex("ID")
         val indexName = gdbTable.schema.fieldIndex("Name")
-        // println(s"${Console.YELLOW}$indexID $indexName${Console.RESET}")
+        val indexFileFormat = gdbTable.schema.fieldIndex("FileFormat")
         gdbTable
           .rows(gdbIndex, gdbTable.maxRows)
           .map(row => {
             val id = row.getInt(indexID)
             val name = row.getString(indexName)
+            val fileFormat = row.getInt(indexFileFormat)
+            logger.debug(s"listTables::id=$id name=$name fileFormat=$fileFormat")
             NameIndex(name, id)
           })
           .filterNot(row => {

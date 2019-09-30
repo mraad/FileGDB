@@ -3,6 +3,7 @@ package com.esri.gdb
 import java.io.File
 import java.nio.{ByteBuffer, ByteOrder}
 
+import com.esri.gdb.FileGDB.getClass
 import com.esri.gdb.GDBTable.getClass
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, Path}
@@ -40,19 +41,21 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
   }
 
   private var objectID = startID
-  private var numRow = 0
+  private var numRows = 0
   private var seek = 0L
 
   def hasNext(): Boolean = {
-    seek = 0L
-    while (seek == 0L && numRow < maxRows /*&& dataInput.available > 0*/ ) {
+    while (numRows < maxRows) {
       byteBuffer.clear()
       dataInput.readFully(bytes, 0, numBytesPerRow)
       seek = seekReader.readSeek(byteBuffer) // 0 value indicates that the row is deleted.
-      numRow += 1 // Includes deleted rows
+      objectID += 1
+      if (seek > 0) {
+        numRows += 1
+        return true
+      }
     }
-    objectID += 1
-    seek > 0L
+    false
   }
 
   def next(): GDBIndexRow = {
@@ -98,6 +101,7 @@ private[gdb] class GDBCacheIterator(dataInput: FSDataInputStream,
 class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytesPerRow: Int) extends AutoCloseable with Serializable {
 
   def indicies(numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[GDBIndexRow] = {
+    val logger = LoggerFactory.getLogger(getClass)
     val startRow = startAtRow min maxRows
     dataInput.seek(16L + startRow * numBytesPerRow)
     var numRows = if (numRowsToRead == -1)
@@ -107,6 +111,7 @@ class GDBIndex(dataInput: FSDataInputStream, maxRows: Int, numBytesPerRow: Int) 
     if (startRow + numRows > maxRows) {
       numRows = maxRows - startRow
     }
+    logger.debug(s"indicies::startRow=$startRow numRows=$numRows numBytesPerRow=$numBytesPerRow")
     // new GDBCacheIterator(dataInput, startRow, numRows, numBytesPerRow)
     new GDBIndexIterator(dataInput, startRow, numRows, numBytesPerRow)
   }

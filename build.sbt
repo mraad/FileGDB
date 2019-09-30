@@ -2,12 +2,12 @@ organization := "com.esri"
 
 name := "filegdb"
 
-version := "0.12.5"
+version := "0.20"
 
 isSnapshot := true
 
 scalaVersion := "2.11.8"
-val sparkVersion = "2.3.3"
+val sparkVersion = "2.3.4"
 
 publishMavenStyle := true
 
