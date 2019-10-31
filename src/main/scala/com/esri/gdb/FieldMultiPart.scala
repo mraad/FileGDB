@@ -18,15 +18,19 @@ class FieldMultiPart(val field: StructField,
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
     val geomType = blob.getVarUInt
+    val hasCurveDesc = (geomType & 0x20000000L) != 0L
     val numPoints = blob.getVarUInt.toInt
+    // println(f"geomType=$geomType%X numPoints=$numPoints")
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 2)
       val numParts = blob.getVarUInt.toInt
-
+      val curveDesc = if (hasCurveDesc) blob.getVarUInt else 0
+      // println(s"numParts=$numParts curveDesc=$curveDesc")
       val xmin = blob.getVarUInt / xyScale + xOrig
       val ymin = blob.getVarUInt / xyScale + yOrig
       val xmax = blob.getVarUInt / xyScale + xmin
       val ymax = blob.getVarUInt / xyScale + ymin
+      // println(f"$xmin $ymin $xmax $ymax")
 
       var dx = 0L
       var dy = 0L
@@ -40,6 +44,7 @@ class FieldMultiPart(val field: StructField,
         var sum = 0
         while (n < numParts) { // Read numParts-1
           val numXY = blob.getVarUInt.toInt
+          // println(f"numXY=$numXY")
           parts(p) = numXY
           sum += numXY
           n += 1
@@ -49,6 +54,7 @@ class FieldMultiPart(val field: StructField,
         p = 0
         while (p < numParts) {
           val numPointsInPart = parts(p)
+          // println(s"numPointsInPart=$numPointsInPart")
           n = 0
           while (n < numPointsInPart) {
             dx += blob.getVarInt
