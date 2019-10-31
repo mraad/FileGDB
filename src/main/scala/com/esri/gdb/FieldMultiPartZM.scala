@@ -27,11 +27,10 @@ class FieldMultiPartZM(val field: StructField,
       val coords = new Array[Double](numPoints * 4)
       val numParts = blob.getVarUInt.toInt
 
-      // Unused - for now !
-      val xmin = blob.getVarUInt // xyScale + xOrig
-      val ymin = blob.getVarUInt // xyScale + yOrig
-      val xmax = blob.getVarUInt // xyScale + xmin
-      val ymax = blob.getVarUInt // xyScale + ymin
+      val xmin = blob.getVarUInt / xyScale + xOrig
+      val ymin = blob.getVarUInt / xyScale + yOrig
+      val xmax = blob.getVarUInt / xyScale + xmin
+      val ymax = blob.getVarUInt / xyScale + ymin
 
       var dx = 0L
       var dy = 0L
@@ -84,7 +83,7 @@ class FieldMultiPartZM(val field: StructField,
           im += 4
           n += 1
         }
-        Row(parts, coords)
+        Row(xmin, ymin, xmax, ymax, parts, coords)
       }
       else {
         var n = 0
@@ -111,10 +110,10 @@ class FieldMultiPartZM(val field: StructField,
           im += 4
           n += 1
         }
-        Row(Array(numPoints), coords)
+        Row(xmin, ymin, xmax, ymax, Array(numPoints), coords)
       }
     } else {
-      Row(Array.empty[Int], Array.empty[Double])
+      Row(0.0, 0.0, 0.0, 0.0, Array.empty[Int], Array.empty[Double])
     }
   }
 }
@@ -132,7 +131,13 @@ object FieldMultiPartZM extends Serializable {
             mScale: Double
            ): FieldMultiPartZM = {
     new FieldMultiPartZM(StructField(name,
-      StructType(Seq(StructField("parts", ArrayType(IntegerType), true), StructField("coords", ArrayType(DoubleType), true))
+      StructType(Seq(
+        StructField("xmin", DoubleType, true),
+        StructField("ymin", DoubleType, true),
+        StructField("xmax", DoubleType, true),
+        StructField("ymax", DoubleType, true),
+        StructField("parts", ArrayType(IntegerType), true),
+        StructField("coords", ArrayType(DoubleType), true))
       ), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
   }
 }
