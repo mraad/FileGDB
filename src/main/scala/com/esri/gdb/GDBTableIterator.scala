@@ -29,7 +29,7 @@ class GDBTableIterator(indexIter: Iterator[GDBIndexRow],
       n += 1
     }
     var bit = 0
-    val values = try {
+    val values: Array[Any] = try {
       fields.map(field => {
         if (field.nullable) {
           val i = bit >> 3

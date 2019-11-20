@@ -13,7 +13,7 @@ class FieldXY(val field: StructField,
 
   override type T = Row
 
-  override def readNull(): Any = null.asInstanceOf[Row]
+  override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)

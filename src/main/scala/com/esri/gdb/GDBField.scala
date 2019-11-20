@@ -17,7 +17,7 @@ trait GDBField extends Serializable {
 
   def readValue(byteBuffer: ByteBuffer, oid: Int): T
 
-  def readNull(): Any
+  def readNull(): T
 }
 
 class FieldFloat32(val field: StructField) extends GDBField {
