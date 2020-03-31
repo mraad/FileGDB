@@ -8,8 +8,7 @@ import org.slf4j.LoggerFactory
 
 case class GDBRelation(gdbPath: String,
                        gdbName: String,
-                       numPartition: Int,
-                       wkid: Int
+                       numPartition: Int
                       )(@transient val sqlContext: SQLContext)
   extends BaseRelation
     with TableScan
@@ -19,9 +18,9 @@ case class GDBRelation(gdbPath: String,
 
   private def inferSchema(): StructType = {
     val sc = sqlContext.sparkContext
-    FileGDB.findTable(sc.hadoopConfiguration, gdbPath, gdbName, wkid) match {
+    FileGDB.findTable(sc.hadoopConfiguration, gdbPath, gdbName) match {
       case Some(catTab) => {
-        val table = GDBTable(sc.hadoopConfiguration, gdbPath, catTab.toTableName, wkid)
+        val table = GDBTable(sc.hadoopConfiguration, gdbPath, catTab.toTableName)
         try {
           table.schema
         } finally {
@@ -38,7 +37,7 @@ case class GDBRelation(gdbPath: String,
   }
 
   override def buildScan(): RDD[Row] = {
-    GDBRDD(sqlContext.sparkContext, gdbPath, gdbName, numPartition, wkid)
+    GDBRDD(sqlContext.sparkContext, gdbPath, gdbName, numPartition)
   }
 
   override def shortName(): String = "gdb"

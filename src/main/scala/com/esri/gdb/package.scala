@@ -8,25 +8,25 @@ import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
 package object gdb {
 
   implicit class SparkContextImplicits(sc: SparkContext) extends Serializable {
-    def gdb(path: String, name: String, numPartitions: Int = 8, wkid: Int = 4326): GDBRDD = {
-      GDBRDD(sc, path, name, numPartitions, wkid)
+    def gdb(path: String, name: String, numPartitions: Int = 8): GDBRDD = {
+      GDBRDD(sc, path, name, numPartitions)
     }
   }
 
   implicit class SQLContextImplicits(sqlContext: SQLContext) extends Serializable {
-    def gdb(path: String, name: String, numPartitions: Int = 8, wkid: Int = 4326): DataFrame = {
-      val relation = GDBRelation(path, name, numPartitions, wkid)(sqlContext)
+    def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = {
+      val relation = GDBRelation(path, name, numPartitions)(sqlContext)
       sqlContext.baseRelationToDataFrame(relation)
     }
   }
 
   implicit class DataFrameReaderImplicits(reader: DataFrameReader) {
-    def gdb(path: String, name: String, numPartitions: Int = 8, wkid: Int = 4326) = reader
+    def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = reader
       .format("com.esri.gdb")
       .option(GDBOptions.PATH, path)
       .option(GDBOptions.NAME, name)
       .option(GDBOptions.NUM_PARTITIONS, numPartitions.toString)
-      .option(GDBOptions.WKID, wkid.toString)
+      // .option(GDBOptions.WKID, wkid.toString)
       .load()
   }
 
@@ -59,6 +59,10 @@ package object gdb {
         shift += 7
       }
       if (isNeg) -ret else ret
+    }
+
+    implicit def getUByte(): Int = {
+      byteBuffer.get & 0x00FF
     }
 
     implicit def getUInt(): Long = {

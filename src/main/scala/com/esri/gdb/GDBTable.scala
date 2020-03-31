@@ -15,9 +15,11 @@ object GDBTable extends Serializable {
 
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def apply(conf: Configuration, path: String, name: String, wkid: Int): GDBTable = {
+  def apply(conf: Configuration, path: String, name: String): GDBTable = {
     val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtable").toString()
-    logger.debug(f"Opening '$filename'")
+    if (logger.isDebugEnabled) {
+      logger.debug(f"Opening '$filename'")
+    }
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
     val (maxRows, bodyBytes) = readHeader(dataBuffer, filename)
@@ -29,16 +31,21 @@ object GDBTable extends Serializable {
         val numBytes = bb.getInt
         // println(s"bodyByte=$bodyBytes numBytes=$numBytes")
         val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
-        logger.debug(s"gdb ver=$gdbVer")
+        if (logger.isDebugEnabled) {
+          logger.debug(s"gdb ver=$gdbVer")
+        }
+        // Read next 32 bits as 4 individual bytes.
         val geometryType = bb.get & 0x00FF
         val b2 = bb.get
         val b3 = bb.get
         val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
         val numFields = bb.getShort & 0x7FFF
-        logger.debug(f"$name::maxRows = $maxRows geometryType = $geometryType%02X geometryProp = $geometryProp%02X numFields = $numFields")
+        if (logger.isDebugEnabled) {
+          logger.debug(f"$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields")
+        }
         // val bb2 = dataBuffer.readBytes(numBytes)
         val fields = Array.fill[GDBField](numFields) {
-          readField(bb, geometryType, geometryProp, wkid)
+          readField(bb, geometryType, geometryProp)
         }
         fields
       }
@@ -46,7 +53,10 @@ object GDBTable extends Serializable {
     new GDBTable(dataBuffer, maxRows, fields)
   }
 
-  private def readField(bb: ByteBuffer, geomType: Int, geomProp: Int, wkid: Int): GDBField = {
+  private def readField(bb: ByteBuffer,
+                        geomType: Int,
+                        geomProp: Int
+                       ): GDBField = {
     val nameLen = bb.get
     val nameBuilder = new StringBuilder(nameLen)
     var n = 0
@@ -65,7 +75,9 @@ object GDBTable extends Serializable {
     }
     val alias = if (aliasLen > 0) aliasBuilder.toString else name
     val fieldType = bb.get
-    logger.debug(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
+    if (logger.isDebugEnabled) {
+      logger.debug(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
+    }
     fieldType match {
       case EsriFieldType.INT16 => toFieldInt16(bb, name, alias)
       case EsriFieldType.INT32 => toFieldInt32(bb, name, alias)
@@ -74,7 +86,7 @@ object GDBTable extends Serializable {
       case EsriFieldType.TIMESTAMP => toFieldTimestamp(bb, name, alias)
       case EsriFieldType.STRING => toFieldString(bb, name, alias)
       case EsriFieldType.OID => toFieldOID(bb, name, alias)
-      case EsriFieldType.SHAPE => toFieldGeom(bb, name, alias, geomType, geomProp, wkid)
+      case EsriFieldType.SHAPE => toFieldGeom(bb, name, alias, geomType, geomProp)
       case EsriFieldType.BINARY => toFieldBinary(bb, name, alias)
       case EsriFieldType.UUID | EsriFieldType.GUID => toFieldUUID(bb, name, alias)
       case EsriFieldType.XML => toFieldXML(bb, name, alias)
@@ -258,9 +270,8 @@ object GDBTable extends Serializable {
                           name: String,
                           alias: String,
                           geometryType: Int,
-                          geometryProp: Int,
-                          wkid: Int
-                         ): GDBField = {
+                          geometryProp: Int
+                         ): FieldBytes = {
     bb.get // len
     val nullable = (bb.get & 1) == 1
 
@@ -269,32 +280,42 @@ object GDBTable extends Serializable {
     val srChars = srLen / 2
     val stringBuilder = new StringBuilder(srChars)
     0 until srChars foreach (_ => stringBuilder.append(bb.getChar))
-    // val sr = stringBuilder.toString // not used :-(
-    // println(sr)
+    val wkt = stringBuilder.toString
 
-    val zAndM = bb.get
-    val (hasZ, hasM) = zAndM match {
+    val getZM = bb.getUByte
+    val (getZ, getM) = getZM match {
       case 7 => (true, true)
       case 5 => (true, false)
       case _ => (false, false)
     }
+    val (hasZ, hasM) = geometryProp & 0x00C0 match {
+      case 0x00C0 => (true, true)
+      case 0x0080 => (true, false)
+      case 0x0040 => (false, true)
+      case _ => (false, false)
+    }
 
-    // println(f"geometryType=$geometryType%X zAndM=$zAndM hasZ=$hasZ hasM=$hasM geomProp=$geometryProp%X")
+    if (logger.isDebugEnabled)
+      logger.debug(f"geomType=$geometryType%X geomProp=$geometryProp%X getZ=$getZ getM=$getM hasZ=$hasZ hasM=$hasM")
 
     val xOrig = bb.getDouble
     val yOrig = bb.getDouble
     val xyScale = bb.getDouble
-    val mOrig = if (hasM) bb.getDouble else 0.0
-    val mScale = if (hasM) bb.getDouble else 0.0
-    val zOrig = if (hasZ) bb.getDouble else 0.0
-    val zScale = if (hasZ) bb.getDouble else 0.0
+    val mOrig = if (getM) bb.getDouble else 0.0
+    val mScale = if (getM) bb.getDouble else 0.0
+    val zOrig = if (getZ) bb.getDouble else 0.0
+    val zScale = if (getZ) bb.getDouble else 0.0
     val xyTolerance = bb.getDouble
-    val mTolerance = if (hasM) bb.getDouble else 0.0
-    val zTolerance = if (hasZ) bb.getDouble else 0.0
+    val mTolerance = if (getM) bb.getDouble else 0.0
+    val zTolerance = if (getZ) bb.getDouble else 0.0
     val xmin = bb.getDouble
     val ymin = bb.getDouble
     val xmax = bb.getDouble
     val ymax = bb.getDouble
+//    val zmin = if (getZ) bb.getDouble else 0.0
+//    val zmax = if (getZ) bb.getDouble else 0.0
+//    val mmin = if (getM) bb.getDouble else 0.0
+//    val mmax = if (getM) bb.getDouble else 0.0
     // Not sure what does !!
     val numes = new ArrayBuffer[Double]()
     var cont = true
@@ -317,25 +338,22 @@ object GDBTable extends Serializable {
 
     val metadataBuilder = new MetadataBuilder()
       .putString("alias", alias)
-      .putLong("wkid", wkid)
+      .putString("srsWKT", wkt)
       .putDouble("xmin", xmin)
       .putDouble("ymin", ymin)
       .putDouble("xmax", xmax)
       .putDouble("ymax", ymax)
-    /*
-    .putBoolean("hasZ", hasZ)
-    .putBoolean("hasM", hasM)
-    .putDouble("xyTolerance", xyTolerance)
-
-    if (hasZ) metadataBuilder.putDouble("zTolerance", zTolerance)
-    if (hasM) metadataBuilder.putDouble("mTolerance", mTolerance)
-    */
-
+      .putLong("geomType", geometryType)
+      .putBoolean("hasZ", hasZ)
+      .putBoolean("hasM", hasM)
     val metadata = metadataBuilder.build()
+    if (logger.isDebugEnabled) {
+      logger.debug(metadata.json)
+    }
 
     // TODO - more shapes and support Z and M
     geometryType match {
-      case 1 =>
+      case 1 => // Point
         geometryProp match {
           case 0x00 => FieldXY(name, nullable, metadata, xOrig, yOrig, xyScale)
           // case 0x40 => FieldPointMType(name, nullAllowed, xOrig, yOrig, mOrig, xyScale, mScale, metadata)
@@ -343,14 +361,18 @@ object GDBTable extends Serializable {
           // case _ => FieldPointZMType(name, nullAllowed, xOrig, yOrig, zOrig, mOrig, xyScale, zScale, mScale, metadata)
           case _ => throw new RuntimeException("Cannot parse (yet) point with M or Z value :-(")
         }
-      case 3 =>
+      case 3 => // Polyline
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
           case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
         }
-      case 4 | 5 =>
-        FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
+      case 4 | 5 => // Polygon
+        geometryProp match {
+          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case _ => throw new RuntimeException(f"Cannot parse (yet) polygons with geometryProp value of $geometryProp%X :-(")
+        }
       case _ =>
         new FieldGeomNoop(StructField(name, StringType, nullable, metadata))
     }

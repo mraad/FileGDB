@@ -22,11 +22,13 @@ class FieldMultiPartZM(val field: StructField,
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
     val geomType = blob.getVarUInt
+    val hasCurveDesc = (geomType & 0x20000000L) != 0L
     val numPoints = blob.getVarUInt.toInt
+    // println(f"geomType=$geomType%X numPoints=$numPoints")
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 4)
       val numParts = blob.getVarUInt.toInt
-
+      val curveDesc = if (hasCurveDesc) blob.getVarUInt else 0
       val xmin = blob.getVarUInt / xyScale + xOrig
       val ymin = blob.getVarUInt / xyScale + yOrig
       val xmax = blob.getVarUInt / xyScale + xmin

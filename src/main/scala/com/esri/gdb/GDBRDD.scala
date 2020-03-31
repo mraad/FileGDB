@@ -10,8 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 case class GDBRDD(@transient sc: SparkContext,
                   gdbPath: String,
                   gdbName: String,
-                  numPartitions: Int,
-                  wkid: Int
+                  numPartitions: Int
                  ) extends RDD[Row](sc, Seq.empty) {
 
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
@@ -20,7 +19,7 @@ case class GDBRDD(@transient sc: SparkContext,
         // println(s"${Console.YELLOW}compute::startAtRow = ${part.startAtRow} numRowsToRead = ${part.numRowsToRead}${Console.RESET}")
         val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
         val index = GDBIndex(conf, gdbPath, part.hexName)
-        val table = GDBTable(conf, gdbPath, part.hexName, wkid)
+        val table = GDBTable(conf, gdbPath, part.hexName)
         // Uncomment below when compiling for Spark 2.4.X - leave it commented for 2.3.X
         context.addTaskCompletionListener /*[Unit]*/ (_ => {
           table.close()
@@ -35,9 +34,9 @@ case class GDBRDD(@transient sc: SparkContext,
   override protected def getPartitions: Array[Partition] = {
     val partitions = new ArrayBuffer[Partition](numPartitions)
     val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
-    FileGDB.findTable(conf, gdbPath, gdbName, wkid) match {
+    FileGDB.findTable(conf, gdbPath, gdbName) match {
       case Some(catTab) => {
-        val table = GDBTable(conf, gdbPath, catTab.toTableName, wkid)
+        val table = GDBTable(conf, gdbPath, catTab.toTableName)
         try {
           val maxRows = table.maxRows
           // log.debug(s"max rows=$maxRows")
@@ -67,7 +66,7 @@ case class GDBRDD(@transient sc: SparkContext,
 }
 
 private[this] case class GDBPartition(index: Int,
-                                      val hexName: String,
-                                      val startAtRow: Int,
-                                      val numRowsToRead: Int
+                                      hexName: String,
+                                      startAtRow: Int,
+                                      numRowsToRead: Int
                                      ) extends Partition

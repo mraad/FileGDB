@@ -25,12 +25,10 @@ class FieldMultiPart(val field: StructField,
       val coords = new Array[Double](numPoints * 2)
       val numParts = blob.getVarUInt.toInt
       val curveDesc = if (hasCurveDesc) blob.getVarUInt else 0
-      // println(s"numParts=$numParts curveDesc=$curveDesc")
       val xmin = blob.getVarUInt / xyScale + xOrig
       val ymin = blob.getVarUInt / xyScale + yOrig
       val xmax = blob.getVarUInt / xyScale + xmin
       val ymax = blob.getVarUInt / xyScale + ymin
-      // println(f"$xmin $ymin $xmax $ymax")
 
       var dx = 0L
       var dy = 0L
