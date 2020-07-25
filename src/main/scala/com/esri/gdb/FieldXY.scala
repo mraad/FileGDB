@@ -2,20 +2,24 @@ package com.esri.gdb
 
 import java.nio.ByteBuffer
 
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{DoubleType, Metadata, StructField, StructType}
+import org.apache.spark.sql.types._
+
+import com.vividsolutions.jts.geom.{Coordinate, CoordinateSequence, GeometryFactory, PrecisionModel}
 
 class FieldXY(val field: StructField,
               xOrig: Double,
               yOrig: Double,
-              xyScale: Double
+              xyScale: Double,
+              xyTolerance: Double
              ) extends FieldBytes {
 
-  override type T = Row
+  override type T = String
 
-  override def readNull(): T = null.asInstanceOf[Row]
+  @transient val geomFact = new GeometryFactory(new PrecisionModel(1.0 / xyTolerance))
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
+  override def readNull(): T = null.asInstanceOf[String]
+
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     val blob = getByteBuffer(byteBuffer)
 
     blob.getVarUInt // geomType
@@ -25,7 +29,7 @@ class FieldXY(val field: StructField,
     val x = (vx - 1.0) / xyScale + xOrig
     val y = (vy - 1.0) / xyScale + yOrig
 
-    Row(x, y)
+    geomFact.createPoint(new Coordinate(x, y)).toString()
   }
 }
 
@@ -35,10 +39,11 @@ object FieldXY extends Serializable {
             metadata: Metadata,
             xOrig: Double,
             yOrig: Double,
-            xyScale: Double
+            xyScale: Double,
+            xyTolerance: Double
            ): FieldXY = {
     new FieldXY(StructField(name,
       StructType(Seq(StructField("x", DoubleType, true), StructField("y", DoubleType, true))
-      ), nullable, metadata), xOrig, yOrig, xyScale)
+      ), nullable, metadata), xOrig, yOrig, xyScale, xyTolerance)
   }
 }

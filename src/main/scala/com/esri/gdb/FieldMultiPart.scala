@@ -5,17 +5,28 @@ import java.nio.ByteBuffer
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
+import com.vividsolutions.jts.geom.{Coordinate, CoordinateSequence, GeometryFactory, PrecisionModel}
+
 class FieldMultiPart(val field: StructField,
                      xOrig: Double,
                      yOrig: Double,
-                     xyScale: Double
+                     xyScale: Double,
+                     xyTolerance: Double
                     ) extends FieldBytes {
 
-  override type T = Row
+  override type T = String
 
-  override def readNull(): T = null.asInstanceOf[Row]
+  protected var dx = 0L
+  
+  protected var dy = 0L
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
+  @transient val geomFact = new GeometryFactory(new PrecisionModel(1.0 / xyTolerance))
+
+  @transient val emptyPolygon = geomFact.createPolygon(null.asInstanceOf[CoordinateSequence]).toString()
+
+  override def readNull(): T = null.asInstanceOf[String]
+
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     val blob = getByteBuffer(byteBuffer)
     val geomType = blob.getVarUInt
     val hasCurveDesc = (geomType & 0x20000000L) != 0L
@@ -36,53 +47,44 @@ class FieldMultiPart(val field: StructField,
       var iy = 1
 
       if (numParts > 1) {
-        val parts = new Array[Int](numParts)
-        var p = 0
-        var n = 1
         var sum = 0
-        while (n < numParts) { // Read numParts-1
-          val numXY = blob.getVarUInt.toInt
-          // println(f"numXY=$numXY")
-          parts(p) = numXY
-          sum += numXY
-          n += 1
-          p += 1
-        }
-        parts(p) = numPoints - sum
-        p = 0
-        while (p < numParts) {
-          val numPointsInPart = parts(p)
-          // println(s"numPointsInPart=$numPointsInPart")
-          n = 0
-          while (n < numPointsInPart) {
-            dx += blob.getVarInt
-            dy += blob.getVarInt
-            coords(ix) = dx / xyScale + xOrig
-            coords(iy) = dy / xyScale + yOrig
-            ix += 2
-            iy += 2
-            n += 1
+        val numCoordSeq = 1 to numParts map (part => {
+          val numCoord = if (part == numParts) {
+            numPoints - sum
+          } else {
+            blob.getVarUInt.toInt
           }
-          p += 1
-        }
-        Row(xmin, ymin, xmax, ymax, parts, coords)
+          sum += numCoord
+          numCoord
+        })
+        val polygons = numCoordSeq.map(numCoord => {
+          val coordinates = getCoordinates(blob, numCoord, xyScale, xOrig, yOrig)
+          geomFact.createLinearRing(coordinates)
+        })
+        val shell = polygons.head
+        val holes = polygons.tail.toArray
+        geomFact.createPolygon(shell, holes).toString()
       }
       else {
-        var n = 0
-        while (n < numPoints) {
-          dx += blob.getVarInt
-          dy += blob.getVarInt
-          coords(ix) = dx / xyScale + xOrig
-          coords(iy) = dy / xyScale + yOrig
-          ix += 2
-          iy += 2
-          n += 1
-        }
-        Row(xmin, ymin, xmax, ymax, Array(numPoints), coords)
+        geomFact.createPolygon(getCoordinates(blob, numPoints, xyScale, xOrig, yOrig)).toString()
       }
     } else {
-      Row(0.0, 0.0, 0.0, 0.0, Array.empty[Int], Array.empty[Double])
+      emptyPolygon
     }
+  }
+
+  def getCoordinates(byteBuffer: ByteBuffer, numCoordinates: Int,xyscale: Double,
+                     xOrig: Double,
+                     yOrig: Double) = {
+    val coordinates = new Array[Coordinate](numCoordinates)
+    0 until numCoordinates foreach (n => {
+      dx += byteBuffer.getVarInt
+      dy += byteBuffer.getVarInt
+      val x = dx / xyscale + xOrig
+      val y = dy / xyscale + yOrig
+      coordinates(n) = new Coordinate(x, y)
+    })
+    coordinates
   }
 }
 
@@ -92,7 +94,8 @@ object FieldMultiPart extends Serializable {
             metadata: Metadata,
             xOrig: Double,
             yOrig: Double,
-            xyScale: Double
+            xyScale: Double,
+            xyTolerance: Double
            ): FieldMultiPart = {
     new FieldMultiPart(StructField(name,
       StructType(Seq(
@@ -103,6 +106,6 @@ object FieldMultiPart extends Serializable {
         StructField("parts", ArrayType(IntegerType), true),
         StructField("coords", ArrayType(DoubleType), true)
       )
-      ), nullable, metadata), xOrig, yOrig, xyScale)
+      ), nullable, metadata), xOrig, yOrig, xyScale,xyTolerance)
   }
 }

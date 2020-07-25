@@ -355,7 +355,7 @@ object GDBTable extends Serializable {
     geometryType match {
       case 1 => // Point
         geometryProp match {
-          case 0x00 => FieldXY(name, nullable, metadata, xOrig, yOrig, xyScale)
+          case 0x00 => FieldXY(name, nullable, metadata, xOrig, yOrig, xyScale, xyTolerance)
           // case 0x40 => FieldPointMType(name, nullAllowed, xOrig, yOrig, mOrig, xyScale, mScale, metadata)
           // case 0x80 => FieldPointZType(name, nullAllowed, xOrig, yOrig, zOrig, xyScale, zScale, metadata)
           // case _ => FieldPointZMType(name, nullAllowed, xOrig, yOrig, zOrig, mOrig, xyScale, zScale, mScale, metadata)
@@ -363,14 +363,14 @@ object GDBTable extends Serializable {
         }
       case 3 => // Polyline
         geometryProp match {
-          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale, xyTolerance)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale, xyTolerance)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
         }
       case 4 | 5 => // Polygon
         geometryProp match {
-          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale, xyTolerance)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale, xyTolerance)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polygons with geometryProp value of $geometryProp%X :-(")
         }
       case _ =>
