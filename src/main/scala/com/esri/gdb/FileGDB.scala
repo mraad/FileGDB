@@ -57,6 +57,8 @@ object FileGDB extends Serializable {
   // So it can be used from PySpark
   def listTables(pathName: String): Array[NameIndex] = listTables(new Configuration(), pathName): Array[NameIndex]
 
+  def listTableNames(pathName: String): Array[String] = listTables(pathName).map(_.name)
+
   def findTable(conf: Configuration, pathName: String, tableName: String): Option[NameIndex] = {
     listTables(conf, pathName).find(_.name == tableName)
   }
