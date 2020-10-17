@@ -1,10 +1,14 @@
 import os
+import untangle  # conda install -c conda-forge untangle
 from setuptools import find_packages, setup
+
+pom = untangle.parse("pom.xml")
+version = pom.project.version.cdata
 
 where = os.path.join("src", "main", "python")
 setup(
     name='filegdb',
-    version='0.38',  # TODO Read it from pom.xml
+    version=version,
     description='FileGDB',
     author='Mansour Raad',
     author_email='mraad@esri.com',

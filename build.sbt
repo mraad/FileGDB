@@ -2,7 +2,7 @@ organization := "com.esri"
 
 name := "filegdb"
 
-version := "0.37"
+version := "0.39"
 
 isSnapshot := true
 

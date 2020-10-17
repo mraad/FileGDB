@@ -5,7 +5,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>filegdb</artifactId>
-    <version>0.38</version>
+    <version>0.39</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -49,7 +49,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.1.0</version>
+                <version>4.4.0</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -143,7 +143,7 @@
                 <java.version>1.8</java.version>
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.8</scala.version>
-                <spark.version>2.4.2</spark.version>
+                <spark.version>2.4.5</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>

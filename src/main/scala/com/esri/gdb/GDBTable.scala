@@ -57,7 +57,7 @@ object GDBTable extends Serializable {
                         geomType: Int,
                         geomProp: Int
                        ): GDBField = {
-    val nameLen = bb.get
+    val nameLen = bb.get & 0x00FF
     val nameBuilder = new StringBuilder(nameLen)
     var n = 0
     while (n < nameLen) {
@@ -66,7 +66,7 @@ object GDBTable extends Serializable {
     }
     val name = nameBuilder.toString
 
-    val aliasLen = bb.get
+    val aliasLen = bb.get & 0x00FF
     val aliasBuilder = new StringBuilder(aliasLen)
     n = 0
     while (n < aliasLen) {
