@@ -21,7 +21,7 @@ case class GDBRDD(@transient sc: SparkContext,
         val index = GDBIndex(conf, gdbPath, part.hexName)
         val table = GDBTable(conf, gdbPath, part.hexName)
         // Uncomment below when compiling for Spark 2.4.X - leave it commented for 2.3.X
-        context.addTaskCompletionListener /*[Unit]*/ (_ => {
+        context.addTaskCompletionListener[Unit](_ => {
           table.close()
           index.close()
         })
