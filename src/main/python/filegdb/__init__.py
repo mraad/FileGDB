@@ -11,6 +11,14 @@ class FileGDB:
     def list_table_names(path: str) -> List[str]:
         """List all the tables in a file geo database.
 
+        ``
+        from pathlib import Path
+        from filegdb import FileGDB
+
+        file_gdb = str(Path(Path.home(), "AISData", "Miami.gdb"))
+        list(FileGDB.list_table_names(file_gdb))
+        ``
+
         :param path: Path to the file geo database.
         :return: list of tables.
         """
