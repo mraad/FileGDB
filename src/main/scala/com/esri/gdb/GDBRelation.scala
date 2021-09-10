@@ -18,7 +18,7 @@ case class GDBRelation(gdbPath: String,
 
   private def inferSchema(): StructType = {
     val sc = sqlContext.sparkContext
-    FileGDB.findTable(sc.hadoopConfiguration, gdbPath, gdbName) match {
+    FileGDB.findTable(gdbPath, gdbName, sc.hadoopConfiguration) match {
       case Some(catTab) => {
         val table = GDBTable(sc.hadoopConfiguration, gdbPath, catTab.toTableName)
         try {

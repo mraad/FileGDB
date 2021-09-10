@@ -23,4 +23,4 @@ class FileGDB:
         :return: list of tables.
         """
         _spark = SparkSession.builder.getOrCreate()
-        return _spark._jvm.com.esri.gdb.FileGDB.listTableNames(os.path.expanduser(path))
+        return _spark._jvm.com.esri.gdb.FileGDB.pyListTableNames(os.path.expanduser(path))

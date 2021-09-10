@@ -1,7 +1,7 @@
 package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.StructType
 import org.slf4j.LoggerFactory
 
@@ -23,7 +23,9 @@ object FileGDB extends Serializable {
 
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def listTables(conf: Configuration, pathName: String): Array[NameIndex] = {
+  def listTables(pathName: String,
+                 conf: Configuration
+                ): Array[NameIndex] = {
     val gdbIndex = GDBIndex(conf, pathName, "a00000001")
     try {
       val gdbTable = GDBTable(conf, pathName, "a00000001")
@@ -55,16 +57,29 @@ object FileGDB extends Serializable {
   }
 
   // So it can be used from PySpark
-  def listTables(pathName: String): Array[NameIndex] = listTables(new Configuration(), pathName): Array[NameIndex]
+  // def listTables(pathName: String): Array[NameIndex] = listTables(pathName, new Configuration()): Array[NameIndex]
 
-  def listTableNames(pathName: String): Array[String] = listTables(pathName).map(_.name)
+  def listTableNames(pathName: String,
+                     conf: Configuration
+                    ): Array[String] = listTables(pathName, conf).map(_.name)
 
-  def findTable(conf: Configuration, pathName: String, tableName: String): Option[NameIndex] = {
-    listTables(conf, pathName).find(_.name == tableName)
+  def pyListTableNames(pathName: String) = {
+    val spark = SparkSession.builder.getOrCreate()
+    listTableNames(pathName, spark.sparkContext.hadoopConfiguration)
   }
 
-  def schema(conf: Configuration, pathName: String, tableName: String): Option[StructType] = {
-    findTable(conf, pathName, tableName) match {
+  def findTable(pathName: String,
+                tableName: String,
+                conf: Configuration
+               ): Option[NameIndex] = {
+    listTables(pathName, conf).find(_.name == tableName)
+  }
+
+  def schema(pathName: String,
+             tableName: String,
+             conf: Configuration
+            ): Option[StructType] = {
+    findTable(pathName, tableName, conf) match {
       case Some(catRow) => {
         val table = GDBTable(conf, pathName, catRow.toTableName)
         try {
@@ -79,19 +94,22 @@ object FileGDB extends Serializable {
   }
 
   // So it can be user by PySpark
-  def schema(pathName: String, tableName: String): StructType = {
-    schema(new Configuration(), pathName, tableName) match {
-      case Some(schema) => schema
-      case _ => StructType(Seq.empty)
-    }
-  }
+  //  def schema(pathName: String, tableName: String): StructType = {
+  //    schema(pathName, tableName, new Configuration()) match {
+  //      case Some(schema) => schema
+  //      case _ => StructType(Seq.empty)
+  //    }
+  //  }
 
-  def rows(pathName: String, tableName: String): Array[Row] = {
-    rows(new Configuration(), pathName, tableName)
-  }
+  //  def rows(pathName: String, tableName: String): Array[Row] = {
+  //    rows(pathName, tableName, new Configuration())
+  //  }
 
-  def rows(conf: Configuration, pathName: String, tableName: String): Array[Row] = {
-    findTable(conf, pathName, tableName) match {
+  def rows(pathName: String,
+           tableName: String,
+           conf: Configuration
+          ): Array[Row] = {
+    findTable(pathName, tableName, conf) match {
       case Some(catRow) => {
         val internalName = catRow.toTableName
         val table = GDBTable(conf, pathName, internalName)
@@ -111,8 +129,33 @@ object FileGDB extends Serializable {
     }
   }
 
+  def rows(pathName: String,
+           tableName: String,
+           func: Row => Boolean,
+           conf: Configuration
+          ): Boolean = {
+    findTable(pathName, tableName, conf) match {
+      case Some(catRow) => {
+        val internalName = catRow.toTableName
+        val table = GDBTable(conf, pathName, internalName)
+        try {
+          val index = GDBIndex(conf, pathName, internalName)
+          try {
+            table.rows(index).forall(func(_))
+          } finally {
+            index.close()
+          }
+        }
+        finally {
+          table.close()
+        }
+      }
+      case _ => false
+    }
+  }
+
   def apply(pathName: String, tableName: String, conf: Configuration = new Configuration()): Option[FileGDB] = {
-    findTable(conf, pathName, tableName) match {
+    findTable(pathName, tableName, conf) match {
       case Some(catRow) => {
         val internalName = catRow.toTableName
         val index = GDBIndex(conf, pathName, internalName)

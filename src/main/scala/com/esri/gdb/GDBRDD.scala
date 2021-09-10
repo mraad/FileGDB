@@ -34,7 +34,7 @@ case class GDBRDD(@transient sc: SparkContext,
   override protected def getPartitions: Array[Partition] = {
     val partitions = new ArrayBuffer[Partition](numPartitions)
     val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
-    FileGDB.findTable(conf, gdbPath, gdbName) match {
+    FileGDB.findTable(gdbPath, gdbName, conf) match {
       case Some(catTab) => {
         val table = GDBTable(conf, gdbPath, catTab.toTableName)
         try {

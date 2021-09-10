@@ -1,12 +1,17 @@
 # Spark GDB
 
 In the wake of the unpredictable future of User Defined Types (UDT), this is a hasty minimalist re-implementation of the [spark-gdb](https://github.com/mraad/spark-gdb) project, in such that the content of a [File GeoDatabase](https://www.esri.com/news/arcuser/0309/files/9reasons.pdf) can be mapped to a *read-only* [Spark DataFrame](https://spark.apache.org/docs/latest/sql-programming-guide.html).  It is minimalist as it only supports features with simple geometries (for now :-) with no M or Z.
+
 In the previous implementation, a `GeometryType` was defined using the UDT framework. However in this implementation, points are stored in a field with two sub-fields x and y.  ~~Polylines and polygons are stored as a string in the [Esri JSON format](https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm).  It is not the most efficient format, but will make the interoperability with the [ArcGIS API for Python](https://developers.arcgis.com/python/) a bit seamless.~~ Polylines and Polygons shapes are stored as two sub fields, `parts` and `coords`. Parts is an array of integers, where the values are the number of points in the part. Coords is an array of doubles, where the values are a sequence of x,y pairs.
 
-Notes:
+*Notes:*
 
 - This implementation does **not** support compressed file geo databases.
 - Date field is a timestamp with UTC timezone.
+
+### Changes
+
+- Sep 10, 2021, Version 0.41 is a breaking change in the `FileGDB` object.
 
 ## Building the project using [sbt](https://www.scala-sbt.org/):
 
