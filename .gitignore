@@ -11,4 +11,5 @@ src/main/python/filegdb.egg-info
 derby.log
 jn.sh
 *.iml
+*.sh
 **/*.lock
