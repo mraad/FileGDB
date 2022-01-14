@@ -5,11 +5,13 @@
 
     <groupId>com.esri</groupId>
     <artifactId>filegdb</artifactId>
-    <version>0.41</version>
+    <version>${revision}</version>
     <packaging>jar</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <filegdb.version>0.41</filegdb.version>
+        <revision>${filegdb.version}-${spark.version}-${scala.compact}</revision>
     </properties>
 
     <name>${project.artifactId}_${scala.compact}</name>
@@ -37,12 +39,14 @@
                 <version>3.2.0</version>
                 <executions>
                     <execution>
+                        <!--
                         <goals>
                             <goal>jar</goal>
                         </goals>
                         <configuration>
                             <classifier>${scala.compact}</classifier>
                         </configuration>
+                        -->
                     </execution>
                 </executions>
             </plugin>
@@ -166,7 +170,7 @@
                 <java.version>1.8</java.version>
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.10</scala.version>
-                <spark.version>3.1.1</spark.version>
+                <spark.version>3.1.2</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
