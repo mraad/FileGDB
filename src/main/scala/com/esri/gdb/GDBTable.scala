@@ -1,14 +1,13 @@
 package com.esri.gdb
 
-import java.io.File
-import java.nio.ByteBuffer
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import org.slf4j.LoggerFactory
 
+import java.io.File
+import java.nio.ByteBuffer
 import scala.collection.mutable.ArrayBuffer
 
 object GDBTable extends Serializable {
@@ -312,10 +311,10 @@ object GDBTable extends Serializable {
     val ymin = bb.getDouble
     val xmax = bb.getDouble
     val ymax = bb.getDouble
-//    val zmin = if (getZ) bb.getDouble else 0.0
-//    val zmax = if (getZ) bb.getDouble else 0.0
-//    val mmin = if (getM) bb.getDouble else 0.0
-//    val mmax = if (getM) bb.getDouble else 0.0
+    //    val zmin = if (getZ) bb.getDouble else 0.0
+    //    val zmax = if (getZ) bb.getDouble else 0.0
+    //    val mmin = if (getM) bb.getDouble else 0.0
+    //    val mmax = if (getM) bb.getDouble else 0.0
     // Not sure what does !!
     val numes = new ArrayBuffer[Double]()
     var cont = true
@@ -365,12 +364,14 @@ object GDBTable extends Serializable {
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
           case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
         }
       case 4 | 5 => // Polygon
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
           case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polygons with geometryProp value of $geometryProp%X :-(")
         }
       case _ =>
