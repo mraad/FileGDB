@@ -1,9 +1,11 @@
 package com.esri.gdb
 
 import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.sources.{BaseRelation, RelationProvider}
+import org.apache.spark.sql.sources.{BaseRelation, DataSourceRegister, RelationProvider}
 
-class DefaultSource extends RelationProvider {
+class DefaultSource extends RelationProvider with DataSourceRegister {
+
+  override def shortName(): String = "gdb"
 
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]): BaseRelation = {
     val path = parameters.getOrElse(GDBOptions.PATH, sys.error("Parameter 'path' must be defined."))
