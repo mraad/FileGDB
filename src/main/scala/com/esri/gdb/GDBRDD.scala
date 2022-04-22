@@ -35,7 +35,7 @@ case class GDBRDD(@transient sc: SparkContext,
     val partitions = new ArrayBuffer[Partition](numPartitions)
     val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
     FileGDB.findTable(gdbPath, gdbName, conf) match {
-      case Some(catTab) => {
+      case Some(catTab) =>
         val table = GDBTable(conf, gdbPath, catTab.toTableName)
         try {
           val maxRows = table.maxRows
@@ -47,7 +47,7 @@ case class GDBRDD(@transient sc: SparkContext,
             var index = 0
             while (startAtRow < maxRows) {
               val numRowsToRead = (maxRows - startAtRow) min maxRowsPerPartition
-              // println(s"${Console.CYAN}startAtRow = $startAtRow numRowsToRead = $numRowsToRead${Console.RESET}")
+              log.debug(s"${Console.CYAN}startAtRow = $startAtRow numRowsToRead = $numRowsToRead${Console.RESET}")
               partitions append GDBPartition(index, catTab.toTableName, startAtRow, numRowsToRead)
               startAtRow += maxRowsPerPartition
               index += 1
@@ -56,10 +56,8 @@ case class GDBRDD(@transient sc: SparkContext,
         } finally {
           table.close()
         }
-      }
-      case _ => {
+      case _ =>
         log.error(s"Cannot find '$gdbName' in $gdbPath, creating an empty array of Partitions !")
-      }
     }
     partitions.toArray
   }

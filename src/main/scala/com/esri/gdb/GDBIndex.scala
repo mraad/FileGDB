@@ -1,13 +1,11 @@
 package com.esri.gdb
 
-import java.io.File
-import java.nio.{ByteBuffer, ByteOrder}
-
-import com.esri.gdb.FileGDB.getClass
-import com.esri.gdb.GDBTable.getClass
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, Path}
 import org.slf4j.LoggerFactory
+
+import java.io.File
+import java.nio.{ByteBuffer, ByteOrder}
 
 private[gdb] trait SeekReader extends Serializable {
   def readSeek(byteBuffer: ByteBuffer): Long

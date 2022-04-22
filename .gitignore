@@ -1,6 +1,7 @@
 .idea
 .ipynb_checkpoints
 data/output
+data/Test.gdb
 build
 dist
 target

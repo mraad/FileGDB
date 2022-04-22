@@ -7,8 +7,9 @@ import org.scalatest.{BeforeAndAfterAll, _}
 import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
+// @Ignore
 class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
-  private val folder = "src/test/resources"
+  // private val folder = "src/test/resources"
   private val path = "src/test/resources/test.gdb"
   private val numRec = 4
   private var sparkSession: SparkSession = _
@@ -31,22 +32,21 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .getOrCreate()
   }
 
+  it should "test DSL" in {
+    val results = sparkSession
+      .sqlContext
+      .gdb(path, "test")
+      .collect()
+
+    results.length shouldBe numRec
+  }
+
   override protected def afterAll(): Unit = {
     try {
       sparkSession.stop()
     } finally {
       super.afterAll()
     }
-  }
-
-  it should "test DSL" in {
-    val results = sparkSession
-      .sqlContext
-      .gdb(path, "test")
-      .select("*")
-      .collect()
-
-    results.size shouldBe numRec
   }
 
 }

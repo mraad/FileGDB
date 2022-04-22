@@ -10,7 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <filegdb.version>0.43</filegdb.version>
+        <filegdb.version>0.45</filegdb.version>
         <revision>${filegdb.version}-${spark.version}-${scala.compact}</revision>
     </properties>
 
@@ -53,7 +53,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.5.6</version>
+                <version>4.6.1</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -82,7 +82,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.0</version>
+                <version>3.10.1</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -182,9 +182,20 @@
                 <java.version>1.8</java.version>
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.15</scala.version>
-                <scalatest.version>3.2.10</scalatest.version>
+                <scalatest.version>3.2.11</scalatest.version>
                 <spark.version>3.2.1</spark.version>
                 <spark.scope>provided</spark.scope>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-3.2-test</id>
+            <properties>
+                <java.version>1.8</java.version>
+                <scala.compact>2.12</scala.compact>
+                <scala.version>${scala.compact}.15</scala.version>
+                <scalatest.version>3.2.11</scalatest.version>
+                <spark.version>3.2.1</spark.version>
+                <spark.scope>compile</spark.scope>
             </properties>
         </profile>
     </profiles>

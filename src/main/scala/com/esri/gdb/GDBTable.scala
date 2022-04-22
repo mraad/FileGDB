@@ -21,14 +21,14 @@ object GDBTable extends Serializable {
     }
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
+    /*
     val (maxRows, bodyBytes) = readHeader(dataBuffer, filename)
     val fields = (maxRows, bodyBytes) match {
       case (0, 0L) =>
         Array.empty[GDBField]
-      case _ => {
+      case _ =>
         val bb = dataBuffer.readBytes((bodyBytes & 0x7FFFFFFF).toInt) // Hack for now.
         val numBytes = bb.getInt
-        // println(s"bodyByte=$bodyBytes numBytes=$numBytes")
         val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
         if (logger.isDebugEnabled) {
           logger.debug(s"gdb ver=$gdbVer")
@@ -42,12 +42,48 @@ object GDBTable extends Serializable {
         if (logger.isDebugEnabled) {
           logger.debug(f"$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields")
         }
-        // val bb2 = dataBuffer.readBytes(numBytes)
-        val fields = Array.fill[GDBField](numFields) {
+        Array.fill[GDBField](numFields) {
           readField(bb, geometryType, geometryProp)
         }
-        fields
+    }
+     */
+    // dataBuffer.position(4)
+    val sig = dataBuffer.getInt()
+    val (maxRows, fields) = if (sig == 3) {
+      val maxRows = dataBuffer.getInt()
+      val largestSize = dataBuffer.getInt()
+      dataBuffer.resize(largestSize)
+      dataBuffer.position(32)
+      val headerOffset = dataBuffer.getLong()
+      dataBuffer.seek(headerOffset)
+      val headerLength = dataBuffer.getInt()
+      val bb = dataBuffer.readBytes(headerLength)
+      val gdbVer = bb.getInt
+      val geometryType = bb.get & 0x00FF
+      val b2 = bb.get
+      val b3 = bb.get
+      val geometryProp = bb.get & 0x00FF
+      val hasZ = (geometryProp & (1 << 7)) != 0
+      val hasM = (geometryProp & (1 << 6)) != 0
+      val numFields = bb.getShort & 0x7FFF
+      if (logger.isDebugEnabled()) {
+        logger.debug(s"maxRows=$maxRows")
+        logger.debug(s"largestSize=$largestSize")
+        // logger.debug(s"headerOffset=$headerOffset")
+        // logger.debug(s"headerLength=$headerLength")
+        logger.debug(s"gdbVer=$gdbVer")
+        logger.debug(s"geometryType=$geometryType")
+        logger.debug(s"hasZ=$hasZ hasM=$hasM")
+        logger.debug(s"numFields=$numFields")
       }
+      val fields = Array.fill[GDBField](numFields) {
+        readField(bb, geometryType, geometryProp)
+      }
+      (maxRows, fields)
+    }
+    else {
+      logger.warn(f"${Console.RED}Invalid signature for '$filename'.  Is the table compressed ?${Console.RESET}")
+      (0, Array.empty[GDBField])
     }
     new GDBTable(dataBuffer, maxRows, fields)
   }
@@ -94,6 +130,7 @@ object GDBTable extends Serializable {
 
   }
 
+  /*
   private def readHeader(dataBuffer: DataBuffer, filename: String) = {
     try {
       val bb = dataBuffer.readBytes(40)
@@ -108,7 +145,6 @@ object GDBTable extends Serializable {
         val h7 = bb.getInt
         val headBytes = bb.getInt // 40
         val h9 = bb.getInt
-        // println(s"sig=$sig numRows=$numRows bodyBytes=$bodyBytes $h3 $h4 $h5 fileBytes=$fileBytes $h7 headBytes=$headBytes $h9")
         (numRows, fileBytes - 40L)
       }
       else {
@@ -121,6 +157,7 @@ object GDBTable extends Serializable {
         (0, 0L)
     }
   }
+   */
 
   private def toFieldFloat32(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get

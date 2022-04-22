@@ -44,9 +44,9 @@ object FileGDB extends Serializable {
             }
             NameIndex(name, id)
           })
-          .filterNot(row => {
-            row.name.startsWith("GDB_")
-          })
+          //          .filterNot(row => {
+          //            row.name.startsWith("GDB_")
+          //          })
           .toArray
       } finally {
         gdbTable.close()
