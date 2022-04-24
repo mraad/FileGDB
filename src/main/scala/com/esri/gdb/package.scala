@@ -22,11 +22,10 @@ package object gdb {
 
   implicit class DataFrameReaderImplicits(reader: DataFrameReader) {
     def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = reader
-      .format("com.esri.gdb")
+      .format("gdb")
       .option(GDBOptions.PATH, path)
       .option(GDBOptions.NAME, name)
       .option(GDBOptions.NUM_PARTITIONS, numPartitions.toString)
-      // .option(GDBOptions.WKID, wkid.toString)
       .load()
   }
 

@@ -1,14 +1,16 @@
 import os
-import untangle  # conda install -c conda-forge untangle
+from xml.dom.minidom import parse
 from setuptools import find_packages, setup
 
-pom = untangle.parse("pom.xml")
-version = pom.project.version.cdata
+doc = parse("pom.xml")
+ele = doc.getElementsByTagName("version")[0]
+ver = ele.firstChild.nodeValue
 
 where = os.path.join("src", "main", "python")
+
 setup(
     name='filegdb',
-    version=version,
+    version=ver,
     description='FileGDB',
     author='Mansour Raad',
     author_email='mraad@esri.com',
