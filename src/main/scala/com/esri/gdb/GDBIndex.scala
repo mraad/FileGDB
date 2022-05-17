@@ -123,7 +123,7 @@ object GDBIndex extends Serializable {
 
   def apply(conf: Configuration, path: String, name: String): GDBIndex = {
     val logger = LoggerFactory.getLogger(getClass)
-    val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtablx").toString()
+    val filename = StringBuilder.newBuilder.append(path).append("/").append(name).append(".gdbtablx").toString()
     val hdfsPath = new Path(filename)
     val dataInput = hdfsPath.getFileSystem(conf).open(hdfsPath)
     val bytes = new Array[Byte](16)
