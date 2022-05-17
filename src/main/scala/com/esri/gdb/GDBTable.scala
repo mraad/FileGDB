@@ -15,7 +15,7 @@ object GDBTable extends Serializable {
   private val logger = LoggerFactory.getLogger(getClass)
 
   def apply(conf: Configuration, path: String, name: String): GDBTable = {
-    val filename = StringBuilder.newBuilder.append(path).append(File.separator).append(name).append(".gdbtable").toString()
+    val filename = StringBuilder.newBuilder.append(path).append("/").append(name).append(".gdbtable").toString()
     if (logger.isDebugEnabled) {
       logger.debug(f"Opening '$filename'")
     }
