@@ -73,15 +73,25 @@ class FieldMultiPartZM(val field: StructField,
         }
         n = 0
         while (n < numPoints) {
-          dz += blob.getVarInt
-          coords(iz) = dz / zScale + zOrig
+          val varInt = try blob.getVarInt catch {case e: Throwable => -2}
+          if (varInt < 0L) {
+            coords(im) = Double.NaN
+          } else {
+            dz += varInt
+            coords(iz) = dz / zScale + zOrig
+          }
           iz += 4
           n += 1
         }
         n = 0
         while (n < numPoints) {
-          dm += blob.getVarInt
-          coords(im) = dm / mScale + mOrig
+          val varInt = try blob.getVarInt catch {case e: Throwable => -2}
+          if (varInt < 0L) {
+            coords(im) = Double.NaN
+          } else {
+            dm += varInt
+            coords(im) = dm / mScale + mOrig
+          }
           im += 4
           n += 1
         }
@@ -100,15 +110,25 @@ class FieldMultiPartZM(val field: StructField,
         }
         n = 0
         while (n < numPoints) {
-          dz += blob.getVarInt
-          coords(iz) = dz / zScale + zOrig
+          val varInt = try blob.getVarInt catch {case e: Throwable => -2}
+          if (varInt < 0L) {
+            coords(im) = Double.NaN
+          } else {
+            dz += varInt
+            coords(iz) = dz / zScale + zOrig
+          }
           iz += 4
           n += 1
         }
         n = 0
         while (n < numPoints) {
-          dm += blob.getVarInt
-          coords(im) = dm / mScale + mOrig
+          val varInt = try blob.getVarInt catch {case e: Throwable => -2}
+          if (varInt < 0L) {
+            coords(im) = Double.NaN
+          } else {
+            dm += varInt
+            coords(im) = dm / mScale + mOrig
+          }
           im += 4
           n += 1
         }

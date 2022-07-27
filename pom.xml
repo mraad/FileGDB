@@ -10,7 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <filegdb.version>0.47</filegdb.version>
+        <filegdb.version>0.48</filegdb.version>
         <revision>${filegdb.version}-${spark.version}-${scala.compact}</revision>
     </properties>
 
