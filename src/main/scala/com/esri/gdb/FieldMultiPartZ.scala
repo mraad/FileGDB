@@ -34,6 +34,7 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
       var iz = 2
 
       if (numParts > 1) {
+        // TODO - Check on this !
         val parts = new Array[Int](numParts)
         var p = 0
         var n = 1

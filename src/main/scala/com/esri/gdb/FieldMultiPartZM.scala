@@ -28,6 +28,7 @@ class FieldMultiPartZM(val field: StructField,
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 4)
       val numParts = blob.getVarUInt.toInt
+      // println(f"numParts=$numParts")
       val curveDesc = if (hasCurveDesc) blob.getVarUInt else 0
       val xmin = blob.getVarUInt / xyScale + xOrig
       val ymin = blob.getVarUInt / xyScale + yOrig
@@ -44,6 +45,7 @@ class FieldMultiPartZM(val field: StructField,
       var im = 3
 
       if (numParts > 1) {
+        // TODO - Handle multi-part ZM correctly !
         val parts = new Array[Int](numParts)
         var p = 0
         var n = 1
@@ -71,6 +73,7 @@ class FieldMultiPartZM(val field: StructField,
           }
           p += 1
         }
+
         n = 0
         while (n < numPoints) {
           dz += blob.getVarInt
@@ -78,16 +81,31 @@ class FieldMultiPartZM(val field: StructField,
           iz += 4
           n += 1
         }
+
         n = 0
+        blob.mark()
+        val hasM = blob.get()
+        if (hasM == 0x42) {
+          // 0x42 seems to be a special value to indicate absence of m array !
+          while (n < numPoints) {
+            coords(im) = Double.NaN
+            im += 4
+            n += 1
+          }
+        } else {
+          blob.reset() // goes to mark position.
+        }
         while (n < numPoints) {
           dm += blob.getVarInt
           coords(im) = dm / mScale + mOrig
           im += 4
           n += 1
         }
+
         Row(xmin, ymin, xmax, ymax, parts, coords)
       }
       else {
+        // Handle single part
         var n = 0
         while (n < numPoints) {
           dx += blob.getVarInt
@@ -106,6 +124,18 @@ class FieldMultiPartZM(val field: StructField,
           n += 1
         }
         n = 0
+        blob.mark()
+        val hasM = blob.get()
+        if (hasM == 0x42) {
+          // 0x42 seems to be a special value to indicate absence of m array !
+          while (n < numPoints) {
+            coords(im) = Double.NaN
+            im += 4
+            n += 1
+          }
+        } else {
+          blob.reset() // Go to marked position.
+        }
         while (n < numPoints) {
           dm += blob.getVarInt
           coords(im) = dm / mScale + mOrig
