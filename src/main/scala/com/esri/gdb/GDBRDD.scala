@@ -41,7 +41,11 @@ case class GDBRDD(@transient sc: SparkContext,
           val maxRows = table.maxRows
           // log.debug(s"max rows=$maxRows")
           if (maxRows > 0) {
-            val maxRowsPerPartition = 1 + maxRows / numPartitions
+            // TODO make "100" configurable.
+            val maxRowsPerPartition = if (maxRows < 100 || maxRows <= numPartitions)
+              maxRows
+            else
+              1 + maxRows / numPartitions
             // log.debug(s"max rows per partition=$maxRowsPerPartition")
             var startAtRow = 0
             var index = 0
