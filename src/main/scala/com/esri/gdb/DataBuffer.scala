@@ -16,7 +16,7 @@ class DataBuffer(dataInput: FSDataInputStream) extends AutoCloseable with Serial
     //      byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
     //    }
     resize(length)
-    byteBuffer.clear
+    byteBuffer.clear()
     dataInput.readFully(bytes, 0, length)
     byteBuffer
   }
