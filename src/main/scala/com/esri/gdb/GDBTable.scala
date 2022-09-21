@@ -356,7 +356,7 @@ object GDBTable extends Serializable {
     val numes = new ArrayBuffer[Double]()
     var cont = true
     while (cont) {
-      val pos = bb.position
+      val pos = bb.position()
       val m1 = bb.get
       val m2 = bb.get
       val m3 = bb.get
