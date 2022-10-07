@@ -10,9 +10,10 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <filegdb.version>0.51</filegdb.version>
-        <revision>${filegdb.version}-${spark.version}-${scala.compact}</revision>
-        <spark.version>3.2.1</spark.version>
+        <filegdb.version>0.52</filegdb.version>
+        <spark.compact>3.2</spark.compact>
+        <spark.version>${spark.compact}.1</spark.version>
+        <revision>${filegdb.version}-${spark.compact}-${scala.compact}</revision>
     </properties>
 
     <name>${project.artifactId}_${scala.compact}</name>
@@ -37,7 +38,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.2</version>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
                         <!--
@@ -54,7 +55,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.6.1</version>
+                <version>4.7.2</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -119,6 +120,7 @@
     </build>
 
     <profiles>
+        <!--
         <profile>
             <id>spark-1.6</id>
             <properties>
@@ -163,6 +165,7 @@
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
+        -->
         <profile>
             <id>spark-3.1</id>
             <properties>
@@ -170,7 +173,8 @@
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.10</scala.version>
                 <scalatest.version>3.1.0</scalatest.version>
-                <spark.version>3.1.2</spark.version>
+                <spark.compact>3.1</spark.compact>
+                <spark.version>${spark.compact}.3</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
@@ -184,21 +188,8 @@
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.15</scala.version>
                 <scalatest.version>3.2.11</scalatest.version>
-                <spark.version>3.2.1</spark.version>
-                <spark.scope>provided</spark.scope>
-            </properties>
-        </profile>
-        <profile>
-            <id>spark-3.2.2</id>
-            <activation>
-                <activeByDefault>false</activeByDefault>
-            </activation>
-            <properties>
-                <java.version>1.8</java.version>
-                <scala.compact>2.12</scala.compact>
-                <scala.version>${scala.compact}.15</scala.version>
-                <scalatest.version>3.2.11</scalatest.version>
-                <spark.version>3.2.2</spark.version>
+                <spark.compact>3.2</spark.compact>
+                <spark.version>${spark.compact}.1</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
@@ -212,7 +203,8 @@
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.15</scala.version>
                 <scalatest.version>3.2.11</scalatest.version>
-                <spark.version>3.3.0</spark.version>
+                <spark.compact>3.3</spark.compact>
+                <spark.version>${spark.compact}.0</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
@@ -226,7 +218,8 @@
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.15</scala.version>
                 <scalatest.version>3.2.11</scalatest.version>
-                <spark.version>3.2.1</spark.version>
+                <spark.compact>3.2</spark.compact>
+                <spark.version>${spark.compact}.1</spark.version>
                 <spark.scope>compile</spark.scope>
             </properties>
         </profile>
