@@ -1,15 +1,17 @@
 package com.esri.gdb
 
-import java.nio.ByteBuffer
-
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{DoubleType, Metadata, StructField, StructType}
 
-class FieldXY(val field: StructField,
-              xOrig: Double,
-              yOrig: Double,
-              xyScale: Double
-             ) extends FieldBytes {
+import java.nio.ByteBuffer
+
+class FieldXYZ(val field: StructField,
+               xOrig: Double,
+               yOrig: Double,
+               xyScale: Double,
+               zOrig: Double,
+               zScale: Double
+              ) extends FieldBytes {
 
   override type T = Row
 
@@ -22,25 +24,30 @@ class FieldXY(val field: StructField,
 
     val vx = blob.getVarUInt()
     val vy = blob.getVarUInt()
+    val vz = blob.getVarUInt()
     val x = (vx - 1.0) / xyScale + xOrig
     val y = (vy - 1.0) / xyScale + yOrig
+    val z = (vz - 1.0) / zScale + zOrig
 
-    Row(x, y)
+    Row(x, y, z)
   }
 }
 
-object FieldXY extends Serializable {
+object FieldXYZ extends Serializable {
   def apply(name: String,
             nullable: Boolean,
             metadata: Metadata,
             xOrig: Double,
             yOrig: Double,
-            xyScale: Double
-           ): FieldXY = {
-    new FieldXY(StructField(name,
+            xyScale: Double,
+            zOrig: Double,
+            zScale: Double,
+           ): FieldXYZ = {
+    new FieldXYZ(StructField(name,
       StructType(Seq(
         StructField("x", DoubleType, nullable),
-        StructField("y", DoubleType, nullable))
-      ), nullable, metadata), xOrig, yOrig, xyScale)
+        StructField("y", DoubleType, nullable),
+        StructField("z", DoubleType, nullable),
+      )), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale)
   }
 }

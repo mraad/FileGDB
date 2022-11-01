@@ -109,12 +109,12 @@ object FieldMultiPartZ extends Serializable {
            ): FieldMultiPartZ = {
     new FieldMultiPartZ(StructField(name,
       StructType(Seq(
-        StructField("xmin", DoubleType, true),
-        StructField("ymin", DoubleType, true),
-        StructField("xmax", DoubleType, true),
-        StructField("ymax", DoubleType, true),
-        StructField("parts", ArrayType(IntegerType), true),
-        StructField("coords", ArrayType(DoubleType), true))
+        StructField("xmin", DoubleType, nullable),
+        StructField("ymin", DoubleType, nullable),
+        StructField("xmax", DoubleType, nullable),
+        StructField("ymax", DoubleType, nullable),
+        StructField("parts", ArrayType(IntegerType), nullable),
+        StructField("coords", ArrayType(DoubleType), nullable))
       ), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale)
   }
 }
