@@ -189,7 +189,7 @@
                 <scala.version>${scala.compact}.15</scala.version>
                 <scalatest.version>3.2.11</scalatest.version>
                 <spark.compact>3.2</spark.compact>
-                <spark.version>${spark.compact}.1</spark.version>
+                <spark.version>${spark.compact}.2</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
@@ -204,7 +204,7 @@
                 <scala.version>${scala.compact}.15</scala.version>
                 <scalatest.version>3.2.11</scalatest.version>
                 <spark.compact>3.3</spark.compact>
-                <spark.version>${spark.compact}.0</spark.version>
+                <spark.version>${spark.compact}.1</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
