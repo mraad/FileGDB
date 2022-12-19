@@ -10,7 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <filegdb.version>0.47</filegdb.version>
+        <filegdb.version>0.49</filegdb.version>
         <revision>${filegdb.version}-${spark.version}-${scala.compact}</revision>
     </properties>
 
@@ -184,6 +184,20 @@
                 <scala.version>${scala.compact}.15</scala.version>
                 <scalatest.version>3.2.11</scalatest.version>
                 <spark.version>3.2.1</spark.version>
+                <spark.scope>provided</spark.scope>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-3.3</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <java.version>1.8</java.version>
+                <scala.compact>2.12</scala.compact>
+                <scala.version>${scala.compact}.15</scala.version>
+                <scalatest.version>3.2.11</scalatest.version>
+                <spark.version>3.3.0</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>

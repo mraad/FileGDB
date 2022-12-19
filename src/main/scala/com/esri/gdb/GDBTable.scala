@@ -6,7 +6,6 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import org.slf4j.LoggerFactory
 
-import java.io.File
 import java.nio.ByteBuffer
 import scala.collection.mutable.ArrayBuffer
 
@@ -356,7 +355,7 @@ object GDBTable extends Serializable {
     val numes = new ArrayBuffer[Double]()
     var cont = true
     while (cont) {
-      val pos = bb.position
+      val pos = bb.position()
       val m1 = bb.get
       val m2 = bb.get
       val m3 = bb.get
@@ -392,23 +391,23 @@ object GDBTable extends Serializable {
       case 1 => // Point
         geometryProp match {
           case 0x00 => FieldXY(name, nullable, metadata, xOrig, yOrig, xyScale)
-          // case 0x40 => FieldPointMType(name, nullAllowed, xOrig, yOrig, mOrig, xyScale, mScale, metadata)
-          // case 0x80 => FieldPointZType(name, nullAllowed, xOrig, yOrig, zOrig, xyScale, zScale, metadata)
-          // case _ => FieldPointZMType(name, nullAllowed, xOrig, yOrig, zOrig, mOrig, xyScale, zScale, mScale, metadata)
-          case _ => throw new RuntimeException("Cannot parse (yet) point with M or Z value :-(")
+          case 0x40 => FieldXYM(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
+          case 0x80 => FieldXYZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
+          case 0xC0 => FieldXYZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case _ => throw new RuntimeException(f"Cannot parse (yet) point with geometryProp value of $geometryProp%X :-(")
         }
       case 3 => // Polyline
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
         }
       case 4 | 5 => // Polygon
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polygons with geometryProp value of $geometryProp%X :-(")
         }
       case _ =>
