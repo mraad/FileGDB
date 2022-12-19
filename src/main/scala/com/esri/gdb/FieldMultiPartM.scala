@@ -5,7 +5,7 @@ import org.apache.spark.sql.types._
 
 import java.nio.ByteBuffer
 
-class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xyScale: Double, zOrig: Double, zScale: Double) extends FieldBytes {
+class FieldMultiPartM(val field: StructField, xOrig: Double, yOrig: Double, xyScale: Double, mOrig: Double, mScale: Double) extends FieldBytes {
 
   override type T = Row
 
@@ -28,10 +28,10 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
 
       var dx = 0L
       var dy = 0L
-      var dz = 0L
+      var dm = 0L
       var ix = 0
       var iy = 1
-      var iz = 2
+      var im = 2
 
       if (numParts > 1) {
         // TODO - Check on this !
@@ -64,9 +64,14 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
         }
         n = 0
         while (n < numPoints) {
-          dz += blob.getVarInt
-          coords(iz) = dz / zScale + zOrig
-          iz += 3
+          val varInt = try blob.getVarInt catch {case e: Throwable => -2}
+          if (varInt < 0L) {
+            coords(im) = Double.NaN
+          } else {
+            dm += varInt
+            coords(im) = dm / mScale + mOrig
+          }
+          im += 3
           n += 1
         }
         Row(xmin, ymin, xmax, ymax, parts, coords)
@@ -84,9 +89,14 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
         }
         n = 0
         while (n < numPoints) {
-          dz += blob.getVarInt
-          coords(iz) = dz / zScale + zOrig
-          iz += 3
+          val varInt = try blob.getVarInt catch {case e: Throwable => -2}
+          if (varInt < 0L) {
+            coords(im) = Double.NaN
+          } else {
+            dm += varInt
+            coords(im) = dm / mScale + mOrig
+          }
+          im += 3
           n += 1
         }
         Row(xmin, ymin, xmax, ymax, Array(numPoints), coords)
@@ -97,17 +107,17 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
   }
 }
 
-object FieldMultiPartZ extends Serializable {
+object FieldMultiPartM extends Serializable {
   def apply(name: String,
             nullable: Boolean,
             metadata: Metadata,
             xOrig: Double,
             yOrig: Double,
             xyScale: Double,
-            zOrig: Double,
-            zScale: Double
-           ): FieldMultiPartZ = {
-    new FieldMultiPartZ(StructField(name,
+            mOrig: Double,
+            mScale: Double
+           ): FieldMultiPartM = {
+    new FieldMultiPartM(StructField(name,
       StructType(Seq(
         StructField("xmin", DoubleType, nullable),
         StructField("ymin", DoubleType, nullable),
@@ -115,6 +125,6 @@ object FieldMultiPartZ extends Serializable {
         StructField("ymax", DoubleType, nullable),
         StructField("parts", ArrayType(IntegerType), nullable),
         StructField("coords", ArrayType(DoubleType), nullable))
-      ), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale)
+      ), nullable, metadata), xOrig, yOrig, xyScale, mOrig, mScale)
   }
 }
