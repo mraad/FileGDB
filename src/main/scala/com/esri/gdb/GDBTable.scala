@@ -399,6 +399,7 @@ object GDBTable extends Serializable {
       case 3 => // Polyline
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
+          case 0x40 => FieldMultiPartM(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
           case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
           case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
@@ -406,6 +407,7 @@ object GDBTable extends Serializable {
       case 4 | 5 => // Polygon
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
+          case 0x40 => FieldMultiPartM(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
           case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
           case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polygons with geometryProp value of $geometryProp%X :-(")
