@@ -7,20 +7,20 @@ import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
 
 package object gdb {
 
-  implicit class SparkContextImplicits(sc: SparkContext) extends Serializable {
+  implicit class SparkContextImplicits(val sc: SparkContext) extends AnyVal {
     def gdb(path: String, name: String, numPartitions: Int = 8): GDBRDD = {
       GDBRDD(sc, path, name, numPartitions)
     }
   }
 
-  implicit class SQLContextImplicits(sqlContext: SQLContext) extends Serializable {
+  implicit class SQLContextImplicits(val sqlContext: SQLContext) extends AnyVal {
     def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = {
       val relation = GDBRelation(path, name, numPartitions)(sqlContext)
       sqlContext.baseRelationToDataFrame(relation)
     }
   }
 
-  implicit class DataFrameReaderImplicits(reader: DataFrameReader) {
+  implicit class DataFrameReaderImplicits(val reader: DataFrameReader) extends AnyVal {
     def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = reader
       .format("gdb")
       .option(GDBOptions.PATH, path)
@@ -29,7 +29,7 @@ package object gdb {
       .load()
   }
 
-  implicit class ByteBufferImplicits(byteBuffer: ByteBuffer) {
+  implicit class ByteBufferImplicits(val byteBuffer: ByteBuffer) extends AnyVal {
 
     implicit def getVarUInt(): Long = {
       var shift = 7
