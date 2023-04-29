@@ -209,6 +209,21 @@
             </properties>
         </profile>
         <profile>
+            <id>spark-3.4</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <java.version>1.8</java.version>
+                <scala.compact>2.12</scala.compact>
+                <scala.version>${scala.compact}.17</scala.version>
+                <scalatest.version>3.2.11</scalatest.version>
+                <spark.compact>3.4</spark.compact>
+                <spark.version>${spark.compact}.0</spark.version>
+                <spark.scope>provided</spark.scope>
+            </properties>
+        </profile>
+        <profile>
             <id>spark-3.2-test</id>
             <activation>
                 <activeByDefault>false</activeByDefault>
