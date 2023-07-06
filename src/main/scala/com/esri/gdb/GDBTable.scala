@@ -396,6 +396,14 @@ object GDBTable extends Serializable {
           case 0xC0 => FieldXYZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) point with geometryProp value of $geometryProp%X :-(")
         }
+      case 2 => // Multipoint
+        geometryProp match {
+          case 0x00 => FieldMultiPoint(name, nullable, metadata, xOrig, yOrig, xyScale)
+          case 0x40 => FieldMultiPointZ(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
+          case 0x80 => FieldMultiPointZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
+          case 0xC0 => FieldMultiPointZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case _ => throw new RuntimeException(f"Cannot parse (yet) multipoint with geometryProp value of $geometryProp%X :-(")
+        }
       case 3 => // Polyline
         geometryProp match {
           case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)

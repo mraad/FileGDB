@@ -1,10 +1,10 @@
 package com.esri.gdb
 
+import org.apache.spark.sql.types.StructField
+
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
-
-import org.apache.spark.sql.types.StructField
 
 trait GDBField extends Serializable {
   type T

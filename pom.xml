@@ -10,7 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <filegdb.version>0.54</filegdb.version>
+        <filegdb.version>0.55</filegdb.version>
         <spark.compact>3.2</spark.compact>
         <spark.version>${spark.compact}.1</spark.version>
         <revision>${filegdb.version}-${spark.compact}-${scala.compact}</revision>
@@ -55,7 +55,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.8.0</version>
+                <version>4.8.1</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -84,7 +84,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -93,7 +93,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.1.2</version>
                 <configuration>
                     <skipTests>true</skipTests>
                 </configuration>
@@ -101,7 +101,7 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
-                <version>2.0.2</version>
+                <version>2.2.0</version>
                 <configuration>
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <junitxml>.</junitxml>
@@ -217,7 +217,7 @@
                 <java.version>1.8</java.version>
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.17</scala.version>
-                <scalatest.version>3.2.11</scalatest.version>
+                <scalatest.version>3.2.16</scalatest.version>
                 <spark.compact>3.4</spark.compact>
                 <spark.version>${spark.compact}.0</spark.version>
                 <spark.scope>provided</spark.scope>
