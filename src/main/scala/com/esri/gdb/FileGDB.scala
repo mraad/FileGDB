@@ -1,8 +1,8 @@
 package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{Row, SparkSession}
 import org.slf4j.LoggerFactory
 
 
@@ -39,9 +39,7 @@ object FileGDB extends Serializable {
             val id = row.getInt(indexID)
             val name = row.getString(indexName)
             val fileFormat = row.getInt(indexFileFormat)
-            if (logger.isDebugEnabled) {
-              logger.debug(s"listTables::id=$id name=$name fileFormat=$fileFormat")
-            }
+            logger.debug(s"listTables::id=$id name=$name fileFormat=$fileFormat")
             NameIndex(name, id)
           })
           //          .filterNot(row => {

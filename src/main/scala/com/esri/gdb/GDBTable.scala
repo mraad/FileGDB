@@ -20,33 +20,6 @@ object GDBTable extends Serializable {
     }
     val hdfsPath = new Path(filename)
     val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
-    /*
-    val (maxRows, bodyBytes) = readHeader(dataBuffer, filename)
-    val fields = (maxRows, bodyBytes) match {
-      case (0, 0L) =>
-        Array.empty[GDBField]
-      case _ =>
-        val bb = dataBuffer.readBytes((bodyBytes & 0x7FFFFFFF).toInt) // Hack for now.
-        val numBytes = bb.getInt
-        val gdbVer = bb.getInt // Seems to be 3 for FGDB 9.X files and 4 for FGDB 10.X files
-        if (logger.isDebugEnabled) {
-          logger.debug(s"gdb ver=$gdbVer")
-        }
-        // Read next 32 bits as 4 individual bytes.
-        val geometryType = bb.get & 0x00FF
-        val b2 = bb.get
-        val b3 = bb.get
-        val geometryProp = bb.get & 0x00FF // 0x40 for geometry with M, 0x80 for geometry with Z
-        val numFields = bb.getShort & 0x7FFF
-        if (logger.isDebugEnabled) {
-          logger.debug(f"$name::maxRows=$maxRows geometryType=$geometryType%02X geometryProp=$geometryProp%02X numFields=$numFields")
-        }
-        Array.fill[GDBField](numFields) {
-          readField(bb, geometryType, geometryProp)
-        }
-    }
-     */
-    // dataBuffer.position(4)
     val sig = dataBuffer.getInt()
     val (maxRows, fields) = if (sig == 3) {
       val maxRows = dataBuffer.getInt()
@@ -109,9 +82,7 @@ object GDBTable extends Serializable {
     }
     val alias = if (aliasLen > 0) aliasBuilder.toString else name
     val fieldType = bb.get
-    if (logger.isDebugEnabled) {
-      logger.debug(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
-    }
+    // logger.debug(s"nameLen=$nameLen name=$name aliasLen=$aliasLen alias=$alias fieldType=$fieldType")
     fieldType match {
       case EsriFieldType.INT16 => toFieldInt16(bb, name, alias)
       case EsriFieldType.INT32 => toFieldInt32(bb, name, alias)
@@ -427,11 +398,10 @@ object GDBTable extends Serializable {
 
 class GDBTable(dataBuffer: DataBuffer, val maxRows: Int, val fields: Array[GDBField]) extends AutoCloseable with Serializable {
 
-  val schema: StructType = StructType(fields.map(_.field))
+  val schema: StructType = StructType(fields.map(_.field()))
 
-  def rows(index: GDBIndex, numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[Row] = {
-    val numRows = if (numRowsToRead < 0) maxRows else numRowsToRead
-    new GDBTableIterator(index.indicies(numRows, startAtRow), dataBuffer, fields, schema)
+  def rows(index: GDBIndex, numRows: Int = maxRows, startAtRow: Int = 0): Iterator[Row] = {
+    new GDBTableIterator(index.indices(numRows, startAtRow), dataBuffer, fields, schema)
   }
 
   override def close(): Unit = {

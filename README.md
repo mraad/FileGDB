@@ -7,19 +7,13 @@ In the previous implementation, a `GeometryType` was defined using the UDT frame
 *Notes:*
 
 - This implementation does **not** support compressed file geo databases.
+- It is HIGHLY recommended to create a fully compacted feature class before using this implementation.
+- The best way to create a compacted feature class is to copy the edited feature class to a new feature class.
 - Date field is a timestamp with UTC timezone.
 
 ### Changes
 
 - Sep 10, 2021, Version 0.41 is a breaking change in the `FileGDB` object.
-
-## Building the project using [sbt](https://www.scala-sbt.org/):
-
-```bash
-sbt clean assembly publishM2 publishLocal
-```
-
-This will create an uber jar in the `target/scala-2.11` folder.
 
 ## Building the project using [Maven](https://maven.apache.org/):
 

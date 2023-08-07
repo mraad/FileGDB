@@ -14,10 +14,12 @@ class GDBTableIterator(indexIter: Iterator[GDBIndexRow],
                       ) extends Iterator[Row] with Serializable {
 
   private lazy val logger = LoggerFactory.getLogger(getClass)
-  val numFieldsWithNullAllowed = fields.count(_.nullable)
-  val nullValueMasks = new Array[Byte]((numFieldsWithNullAllowed / 8.0).ceil.toInt)
+  private val numFieldsWithNullAllowed = fields.count(_.nullable())
+  private val nullValueMasks = new Array[Byte]((numFieldsWithNullAllowed / 8.0).ceil.toInt)
 
-  def hasNext(): Boolean = indexIter.hasNext
+  def hasNext(): Boolean = {
+    indexIter.hasNext
+  }
 
   def next(): Row = {
     val index = indexIter.next()
@@ -31,7 +33,7 @@ class GDBTableIterator(indexIter: Iterator[GDBIndexRow],
     var bit = 0
     val values: Array[Any] = try {
       fields.map(field => {
-        if (field.nullable) {
+        if (field.nullable()) {
           val i = bit >> 3
           val m = 1 << (bit & 7)
           bit += 1
@@ -46,10 +48,9 @@ class GDBTableIterator(indexIter: Iterator[GDBIndexRow],
         }
       })
     } catch {
-      case t: Throwable => {
-        logger.error(s"OBJECTID=${index.oid}, numBytes=${numBytes}", t)
+      case t: Throwable =>
+        logger.error(s"OBJECTID=${index.oid}, numBytes=$numBytes", t)
         fields.map(_.readNull())
-      }
     }
     new GenericRowWithSchema(values, schema)
   }
