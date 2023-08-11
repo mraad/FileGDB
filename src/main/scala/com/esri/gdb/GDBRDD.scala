@@ -41,7 +41,7 @@ case class GDBRDD(@transient sc: SparkContext,
           val index = GDBIndex(conf, gdbPath, catTab.toTableName)
           try {
             if (index.maxRows != table.maxRows) {
-              log.warn(s"Compress and then uncompress $gdbName for better performance. Or better, copy it to a new file feature class with the needed fields.")
+              log.warn(s"Compress and then uncompress $gdbName for better read performance. Or better, copy it to a new feature class with the required fields.")
             }
             val maxRows = index.maxRows
             // println(s"${Console.YELLOW}getPartitions::tabRows=${table.maxRows} indRows=${index.maxRows}${Console.RESET}")
