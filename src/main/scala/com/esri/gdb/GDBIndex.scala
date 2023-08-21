@@ -89,7 +89,8 @@ object GDBIndex extends Serializable {
     val maxRows = byteBuffer.getInt
     val numBytesPerRow = byteBuffer.getInt
     // println(s"${Console.RED}$name::n1024Blocks=$n1024Blocks, maxRows=$maxRows, numBytesPerRow=$numBytesPerRow${Console.RESET}")
-    new GDBIndex(dataInput, maxRows, numBytesPerRow)
+    // new GDBIndex(dataInput, maxRows, numBytesPerRow)
+    new GDBIndex(dataInput, n1024Blocks * 1024, numBytesPerRow)
   }
 
 }
