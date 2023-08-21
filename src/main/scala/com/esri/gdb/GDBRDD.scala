@@ -47,7 +47,7 @@ case class GDBRDD(@transient sc: SparkContext,
           // println(s"${Console.YELLOW}getPartitions::tabRows=${table.maxRows} indRows=${index.maxRows}${Console.RESET}")
           if (maxRows > 0) {
             // TODO - Make 1000 configurable.
-            val maxRowsPerPartition = if (maxRows < 1000 || maxRows <= numPartitions)
+            val maxRowsPerPartition = if (maxRows <= 1024 /*|| maxRows <= numPartitions*/ )
               maxRows
             else
               (maxRows / numPartitions.toDouble).ceil.toInt
@@ -55,6 +55,7 @@ case class GDBRDD(@transient sc: SparkContext,
             var startAtRow = 0
             while (startAtRow < maxRows) {
               val numRowsToRead = (maxRows - startAtRow) min maxRowsPerPartition
+              // println(s"startAtRow=$startAtRow numRowsToRead=$numRowsToRead")
               partitions append GDBPartition(partitions.length, catTab.toTableName, startAtRow, numRowsToRead)
               startAtRow += numRowsToRead
             }

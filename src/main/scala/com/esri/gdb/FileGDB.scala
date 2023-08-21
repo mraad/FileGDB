@@ -34,7 +34,7 @@ object FileGDB extends Serializable {
         val indexName = gdbTable.schema.fieldIndex("Name")
         val indexFileFormat = gdbTable.schema.fieldIndex("FileFormat")
         gdbTable
-          .rows(gdbIndex, gdbTable.maxRows)
+          .rows(gdbIndex, gdbIndex.maxRows)
           .map(row => {
             val id = row.getInt(indexID)
             val name = row.getString(indexName)
