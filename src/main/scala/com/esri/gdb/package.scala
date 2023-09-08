@@ -1,15 +1,16 @@
 package com.esri
 
-import java.nio.ByteBuffer
-
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
+import org.apache.spark.util.SerializableConfiguration
+
+import java.nio.ByteBuffer
 
 package object gdb {
 
   implicit class SparkContextImplicits(val sc: SparkContext) extends AnyVal {
     def gdb(path: String, name: String, numPartitions: Int = 8): GDBRDD = {
-      GDBRDD(sc, path, name, numPartitions)
+      GDBRDD(new SerializableConfiguration(sc.hadoopConfiguration), path, name, numPartitions)
     }
   }
 

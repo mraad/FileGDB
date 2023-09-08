@@ -4,6 +4,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources.{BaseRelation, DataSourceRegister, TableScan}
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.{Row, SQLContext}
+import org.apache.spark.util.SerializableConfiguration
 import org.slf4j.LoggerFactory
 
 case class GDBRelation(gdbPath: String,
@@ -37,7 +38,7 @@ case class GDBRelation(gdbPath: String,
   }
 
   override def buildScan(): RDD[Row] = {
-    GDBRDD(sqlContext.sparkContext, gdbPath, gdbName, numPartition)
+    GDBRDD(new SerializableConfiguration(sqlContext.sparkContext.hadoopConfiguration), gdbPath, gdbName, numPartition)
   }
 
   override def shortName(): String = "gdb"

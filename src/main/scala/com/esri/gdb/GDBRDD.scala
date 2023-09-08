@@ -1,25 +1,26 @@
 package com.esri.gdb
 
-import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+import org.apache.spark.util.SerializableConfiguration
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 
 import scala.collection.mutable.ArrayBuffer
 
-case class GDBRDD(@transient sc: SparkContext,
+case class GDBRDD(hadoopConfSer: SerializableConfiguration,
                   gdbPath: String,
                   gdbName: String,
                   numPartitions: Int
-                 ) extends RDD[Row](sc, Seq.empty) {
+                 ) extends RDD[Row](SparkContext.getOrCreate(), Seq.empty) {
 
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
     partition match {
       case part: GDBPartition => {
         // println(s"${Console.YELLOW}compute::startAtRow = ${part.startAtRow} numRowsToRead = ${part.numRowsToRead}${Console.RESET}")
-        val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
-        val index = GDBIndex(conf, gdbPath, part.hexName)
-        val table = GDBTable(conf, gdbPath, part.hexName)
+        // val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
+        // val conf = hadoopConfSer.value
+        val index = GDBIndex(hadoopConfSer.value, gdbPath, part.hexName)
+        val table = GDBTable(hadoopConfSer.value, gdbPath, part.hexName)
         // Uncomment below when compiling for Spark 2.4.X - leave it commented for 2.3.X
         context.addTaskCompletionListener[Unit](_ => {
           table.close()
@@ -33,12 +34,12 @@ case class GDBRDD(@transient sc: SparkContext,
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = new ArrayBuffer[Partition](numPartitions)
-    val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
-    FileGDB.findTable(gdbPath, gdbName, conf) match {
+    // val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
+    FileGDB.findTable(gdbPath, gdbName, hadoopConfSer.value) match {
       case Some(catTab) =>
         //        val table = GDBTable(conf, gdbPath, catTab.toTableName)
         //        try {
-        val index = GDBIndex(conf, gdbPath, catTab.toTableName)
+        val index = GDBIndex(hadoopConfSer.value, gdbPath, catTab.toTableName)
         try {
           //            if (index.maxRows != table.maxRows) {
           //              log.warn(s"Compress and then uncompress $gdbName for better read performance. Or better, copy it to a new feature class with the required fields.")
