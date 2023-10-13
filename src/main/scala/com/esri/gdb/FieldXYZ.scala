@@ -15,20 +15,19 @@ class FieldXYZ(val field: StructField,
 
   override type T = Row
 
+  override def copy(): GDBField = new FieldXYZ(field, xOrig, yOrig, xyScale, zOrig, zScale)
+
   override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-
-    blob.getVarUInt // geomType
-
+    val _ = blob.getVarUInt() // geomType
     val vx = blob.getVarUInt()
     val vy = blob.getVarUInt()
     val vz = blob.getVarUInt()
     val x = (vx - 1.0) / xyScale + xOrig
     val y = (vy - 1.0) / xyScale + yOrig
     val z = (vz - 1.0) / zScale + zOrig
-
     Row(x, y, z)
   }
 }

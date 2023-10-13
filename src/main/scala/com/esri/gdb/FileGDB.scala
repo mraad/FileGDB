@@ -1,15 +1,13 @@
 package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Row, SparkSession}
-import org.slf4j.LoggerFactory
 
 
 class FileGDB(index: GDBIndex, table: GDBTable) extends AutoCloseable with Serializable {
-  def schema(): StructType = {
-    table.schema
-  }
+  def schema(): StructType = table.schema
 
   def rows(numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[Row] = table.rows(index, numRowsToRead, startAtRow)
 
@@ -21,7 +19,7 @@ class FileGDB(index: GDBIndex, table: GDBTable) extends AutoCloseable with Seria
 
 object FileGDB extends Serializable {
 
-  private val logger = LoggerFactory.getLogger(getClass)
+  // private val logger = LoggerFactory.getLogger(getClass)
 
   def listTables(pathName: String,
                  conf: Configuration
@@ -32,19 +30,16 @@ object FileGDB extends Serializable {
       try {
         val indexID = gdbTable.schema.fieldIndex("ID")
         val indexName = gdbTable.schema.fieldIndex("Name")
-        val indexFileFormat = gdbTable.schema.fieldIndex("FileFormat")
+        // val indexFileFormat = gdbTable.schema.fieldIndex("FileFormat")
         gdbTable
           .rows(gdbIndex, gdbIndex.maxRows)
           .map(row => {
             val id = row.getInt(indexID)
             val name = row.getString(indexName)
-            val fileFormat = row.getInt(indexFileFormat)
-            logger.debug(s"listTables::id=$id name=$name fileFormat=$fileFormat")
+            // val fileFormat = row.getInt(indexFileFormat)
+            // logger.debug(s"listTables::id=$id name=$name")
             NameIndex(name, id)
           })
-          //          .filterNot(row => {
-          //            row.name.startsWith("GDB_")
-          //          })
           .toArray
       } finally {
         gdbTable.close()
@@ -54,17 +49,9 @@ object FileGDB extends Serializable {
     }
   }
 
-  // So it can be used from PySpark
-  // def listTables(pathName: String): Array[NameIndex] = listTables(pathName, new Configuration()): Array[NameIndex]
-
   def listTableNames(pathName: String,
                      conf: Configuration
                     ): Array[String] = listTables(pathName, conf).map(_.name)
-
-  def pyListTableNames(pathName: String) = {
-    val spark = SparkSession.builder.getOrCreate()
-    listTableNames(pathName, spark.sparkContext.hadoopConfiguration)
-  }
 
   def findTable(pathName: String,
                 tableName: String,
@@ -78,7 +65,7 @@ object FileGDB extends Serializable {
              conf: Configuration
             ): Option[StructType] = {
     findTable(pathName, tableName, conf) match {
-      case Some(catRow) => {
+      case Some(catRow) =>
         val table = GDBTable(conf, pathName, catRow.toTableName)
         try {
           Some(table.schema)
@@ -86,22 +73,9 @@ object FileGDB extends Serializable {
         finally {
           table.close()
         }
-      }
       case _ => None
     }
   }
-
-  // So it can be user by PySpark
-  //  def schema(pathName: String, tableName: String): StructType = {
-  //    schema(pathName, tableName, new Configuration()) match {
-  //      case Some(schema) => schema
-  //      case _ => StructType(Seq.empty)
-  //    }
-  //  }
-
-  //  def rows(pathName: String, tableName: String): Array[Row] = {
-  //    rows(pathName, tableName, new Configuration())
-  //  }
 
   def rows(pathName: String,
            tableName: String,
@@ -127,6 +101,7 @@ object FileGDB extends Serializable {
     }
   }
 
+  @deprecated
   def rows(pathName: String,
            tableName: String,
            func: Row => Boolean,

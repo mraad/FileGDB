@@ -9,18 +9,20 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
 
   override type T = Row
 
+  override def copy(): GDBField = new FieldMultiPartZ(field, xOrig, yOrig, xyScale, zOrig, zScale)
+
   override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-    val geomType = blob.getVarUInt
+    val geomType = blob.getVarUInt()
     val hasCurveDesc = (geomType & 0x20000000L) != 0L
-    val numPoints = blob.getVarUInt.toInt
+    val numPoints = blob.getVarUInt().toInt
     // println(f"geomType=$geomType%X numPoints=$numPoints")
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 4)
-      val numParts = blob.getVarUInt.toInt
-      val curveDesc = if (hasCurveDesc) blob.getVarUInt else 0
+      val numParts = blob.getVarUInt().toInt
+      val _ = if (hasCurveDesc) blob.getVarUInt() else 0
       val xmin = blob.getVarUInt / xyScale + xOrig
       val ymin = blob.getVarUInt / xyScale + yOrig
       val xmax = blob.getVarUInt / xyScale + xmin
@@ -40,7 +42,7 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
         var n = 1
         var sum = 0
         while (n < numParts) { // Read numParts-1
-          val numXY = blob.getVarUInt.toInt
+          val numXY = blob.getVarUInt().toInt
           parts(p) = numXY
           sum += numXY
           n += 1

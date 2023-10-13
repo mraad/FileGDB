@@ -11,10 +11,6 @@ class DataBuffer(dataInput: FSDataInputStream) extends AutoCloseable with Serial
   private var byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
 
   def readBytes(length: Int): ByteBuffer = {
-    //    if (length > bytes.length) {
-    //      bytes = new Array[Byte](length)
-    //      byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-    //    }
     resize(length)
     byteBuffer.clear()
     dataInput.readFully(bytes, 0, length)
@@ -33,10 +29,10 @@ class DataBuffer(dataInput: FSDataInputStream) extends AutoCloseable with Serial
     this
   }
 
-  def position(seek: Long): DataBuffer = {
-    dataInput.seek(seek)
-    this
-  }
+//  def position(seek: Long): DataBuffer = {
+//    dataInput.seek(seek)
+//    this
+//  }
 
   @inline
   private def fromBytes(b1: Byte, b2: Byte, b3: Byte, b4: Byte): Int = b1 << 24 | (b2 & 255) << 16 | (b3 & 255) << 8 | b4 & 255
@@ -65,7 +61,7 @@ class DataBuffer(dataInput: FSDataInputStream) extends AutoCloseable with Serial
     /*Longs.*/ fromBytes(b8, b7, b6, b5, b4, b3, b2, b1)
   }
 
-  def close() {
+  def close(): Unit = {
     dataInput.close()
   }
 }

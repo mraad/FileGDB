@@ -1,9 +1,9 @@
 package com.esri.gdb
 
-import java.nio.ByteBuffer
-
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
+
+import java.nio.ByteBuffer
 
 class FieldMultiPart(val field: StructField,
                      xOrig: Double,
@@ -11,20 +11,22 @@ class FieldMultiPart(val field: StructField,
                      xyScale: Double
                     ) extends FieldBytes {
 
+  override def copy(): GDBField = new FieldMultiPart(field, xOrig, yOrig, xyScale)
+
   override type T = Row
 
   override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-    val geomType = blob.getVarUInt
+    val geomType = blob.getVarUInt()
     val hasCurveDesc = (geomType & 0x20000000L) != 0L
-    val numPoints = blob.getVarUInt.toInt
+    val numPoints = blob.getVarUInt().toInt
     // println(f"geomType=$geomType%X numPoints=$numPoints")
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 2)
-      val numParts = blob.getVarUInt.toInt
-      val curveDesc = if (hasCurveDesc) blob.getVarUInt else 0
+      val numParts = blob.getVarUInt().toInt
+      val _ = if (hasCurveDesc) blob.getVarUInt() else 0
       val xmin = blob.getVarUInt / xyScale + xOrig
       val ymin = blob.getVarUInt / xyScale + yOrig
       val xmax = blob.getVarUInt / xyScale + xmin
@@ -41,7 +43,7 @@ class FieldMultiPart(val field: StructField,
         var n = 1
         var sum = 0
         while (n < numParts) { // Read numParts-1
-          val numXY = blob.getVarUInt.toInt
+          val numXY = blob.getVarUInt().toInt
           // println(f"numXY=$numXY")
           parts(p) = numXY
           sum += numXY

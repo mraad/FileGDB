@@ -2,62 +2,75 @@ package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
+import org.apache.spark.util.TaskCompletionListener
 import org.slf4j.LoggerFactory
 
 import java.nio.ByteBuffer
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+case class GDBTableHeader(numFeatures: Int, largestSize: Int, fields: Array[GDBField])
+
 object GDBTable extends Serializable {
-
   private val logger = LoggerFactory.getLogger(getClass)
+  private val map = mutable.Map.empty[String, GDBTableHeader]
 
-  def apply(conf: Configuration, path: String, name: String): GDBTable = {
+  def apply(conf: Configuration, path: String, name: String, context: Option[TaskContext] = None): GDBTable = {
     val filename = StringBuilder.newBuilder.append(path).append("/").append(name).append(".gdbtable").toString()
-    if (logger.isDebugEnabled) {
-      logger.debug(f"Opening '$filename'")
-    }
     val hdfsPath = new Path(filename)
-    val dataBuffer = DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
-    val sig = dataBuffer.getInt()
-    val (maxRows, fields) = if (sig == 3) {
-      val maxRows = dataBuffer.getInt()
-      val largestSize = dataBuffer.getInt()
-      dataBuffer.resize(largestSize)
-      dataBuffer.position(32)
-      val headerOffset = dataBuffer.getLong()
-      dataBuffer.seek(headerOffset)
-      val headerLength = dataBuffer.getInt()
-      val bb = dataBuffer.readBytes(headerLength)
-      val gdbVer = bb.getInt
-      val geometryType = bb.get & 0x00FF
-      val b2 = bb.get
-      val b3 = bb.get
-      val geometryProp = bb.get & 0x00FF
-      val hasZ = (geometryProp & (1 << 7)) != 0
-      val hasM = (geometryProp & (1 << 6)) != 0
-      val numFields = bb.getShort & 0x7FFF
-      if (logger.isDebugEnabled()) {
-        logger.debug(s"maxRows=$maxRows")
-        logger.debug(s"largestSize=$largestSize")
-        // logger.debug(s"headerOffset=$headerOffset")
-        // logger.debug(s"headerLength=$headerLength")
-        logger.debug(s"gdbVer=$gdbVer")
-        logger.debug(s"geometryType=$geometryType")
-        logger.debug(s"hasZ=$hasZ hasM=$hasM")
-        logger.debug(s"numFields=$numFields")
+    val dataInput = hdfsPath.getFileSystem(conf).open(hdfsPath)
+    val dataBuffer = DataBuffer(dataInput)
+
+    def readTableHeader: GDBTableHeader = {
+      logger.debug(f"Cache $filename...")
+      val sig = dataBuffer.getInt()
+      if (sig == 3) {
+        val numFeatures = dataBuffer.getInt()
+        val largestSize = dataBuffer.getInt()
+        dataBuffer.resize(largestSize)
+        dataBuffer.seek(32L)
+        val headerOffset = dataBuffer.getLong()
+        dataBuffer.seek(headerOffset)
+        val headerLength = dataBuffer.getInt()
+        val bb = dataBuffer.readBytes(headerLength)
+        val gdbVer = bb.getInt
+        val geometryType = bb.get & 0x00FF
+        val b2 = bb.get
+        val b3 = bb.get
+        val geometryProp = bb.get & 0x00FF
+        val hasZ = (geometryProp & (1 << 7)) != 0
+        val hasM = (geometryProp & (1 << 6)) != 0
+        val numFields = bb.getShort & 0x7FFF
+        if (logger.isDebugEnabled()) {
+          logger.debug(s"numFeatures=$numFeatures")
+          val geometryTypeText = geometryType match {
+            case 1 => "Point"
+            case 2 => "MultiPoint"
+            case 3 => "Polyline"
+            case 4 => "Polygon"
+            case 9 => "Multipatch"
+            case _ => "Unknown"
+          }
+          logger.debug(s"geometryType=$geometryType ($geometryTypeText)")
+          logger.debug(s"hasZ=$hasZ hasM=$hasM")
+          logger.debug(s"numFields=$numFields")
+        }
+        val fields = Array.fill[GDBField](numFields) {
+          readField(bb, geometryType, geometryProp)
+        }
+        GDBTableHeader(numFeatures, largestSize, fields)
       }
-      val fields = Array.fill[GDBField](numFields) {
-        readField(bb, geometryType, geometryProp)
+      else {
+        logger.warn(f"${Console.RED}Invalid signature for '$filename'.  Is the table compressed ?${Console.RESET}")
+        GDBTableHeader(0, 1024, Array.empty[GDBField])
       }
-      (maxRows, fields)
     }
-    else {
-      logger.warn(f"${Console.RED}Invalid signature for '$filename'.  Is the table compressed ?${Console.RESET}")
-      (0, Array.empty[GDBField])
-    }
-    new GDBTable(dataBuffer, maxRows, fields)
+
+    val tableHeader = map.getOrElseUpdate(filename, readTableHeader)
+    new GDBTable(dataBuffer, tableHeader, context)
   }
 
   private def readField(bb: ByteBuffer,
@@ -100,39 +113,10 @@ object GDBTable extends Serializable {
 
   }
 
-  /*
-  private def readHeader(dataBuffer: DataBuffer, filename: String) = {
-    try {
-      val bb = dataBuffer.readBytes(40)
-      val sig = bb.getInt // signature
-      if (sig == 3) {
-        val numRows = bb.getInt
-        val bodyBytes = bb.getUInt // number of packed bytes in the body
-        val h3 = bb.getInt
-        val h4 = bb.getInt
-        val h5 = bb.getInt
-        val fileBytes = bb.getUInt
-        val h7 = bb.getInt
-        val headBytes = bb.getInt // 40
-        val h9 = bb.getInt
-        (numRows, fileBytes - 40L)
-      }
-      else {
-        logger.warn(f"${Console.RED}Invalid signature for '$filename'.  Is the table compressed ?${Console.RESET}")
-        (0, 0L)
-      }
-    } catch {
-      case t: Throwable =>
-        logger.error(filename, t)
-        (0, 0L)
-    }
-  }
-   */
-
   private def toFieldFloat32(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    var lenDefVal = bb.getVarUInt
+    var lenDefVal = bb.getVarUInt()
     while (lenDefVal > 0) {
       bb.get()
       lenDefVal -= 1
@@ -147,7 +131,7 @@ object GDBTable extends Serializable {
   private def toFieldFloat64(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    var lenDefVal = bb.getVarUInt
+    var lenDefVal = bb.getVarUInt()
     while (lenDefVal > 0) {
       bb.get()
       lenDefVal -= 1
@@ -162,7 +146,7 @@ object GDBTable extends Serializable {
   private def toFieldInt16(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    var lenDefVal = bb.getVarUInt
+    var lenDefVal = bb.getVarUInt()
     while (lenDefVal > 0) {
       bb.get()
       lenDefVal -= 1
@@ -177,7 +161,7 @@ object GDBTable extends Serializable {
   private def toFieldInt32(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    var lenDefVal = bb.getVarUInt
+    var lenDefVal = bb.getVarUInt()
     while (lenDefVal > 0) {
       bb.get()
       lenDefVal -= 1
@@ -222,7 +206,7 @@ object GDBTable extends Serializable {
   private def toFieldString(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.getInt
     val nullable = (bb.get & 1) == 1
-    var lenDefVal = bb.getVarUInt
+    var lenDefVal = bb.getVarUInt()
     while (lenDefVal > 0) {
       bb.get()
       lenDefVal -= 1
@@ -237,7 +221,7 @@ object GDBTable extends Serializable {
   private def toFieldTimestamp(bb: ByteBuffer, name: String, alias: String): GDBField = {
     val len = bb.get
     val nullable = (bb.get & 1) == 1
-    var lenDefVal = bb.getVarUInt
+    var lenDefVal = bb.getVarUInt()
     while (lenDefVal > 0) {
       bb.get()
       lenDefVal -= 1
@@ -288,7 +272,7 @@ object GDBTable extends Serializable {
     0 until srChars foreach (_ => stringBuilder.append(bb.getChar))
     val wkt = stringBuilder.toString
 
-    val getZM = bb.getUByte
+    val getZM = bb.getUByte()
     val (getZ, getM) = getZM match {
       case 7 => (true, true)
       case 5 => (true, false)
@@ -301,8 +285,8 @@ object GDBTable extends Serializable {
       case _ => (false, false)
     }
 
-    if (logger.isDebugEnabled)
-      logger.debug(f"geomType=$geometryType%X geomProp=$geometryProp%X getZ=$getZ getM=$getM hasZ=$hasZ hasM=$hasM")
+    //    if (logger.isDebugEnabled)
+    //      logger.debug(f"geomType=$geometryType%X geomProp=$geometryProp%X getZ=$getZ getM=$getM hasZ=$hasZ hasM=$hasM")
 
     val xOrig = bb.getDouble
     val yOrig = bb.getDouble
@@ -323,7 +307,7 @@ object GDBTable extends Serializable {
     //    val mmin = if (getM) bb.getDouble else 0.0
     //    val mmax = if (getM) bb.getDouble else 0.0
     // Not sure what does !!
-    val numes = new ArrayBuffer[Double]()
+    val nume = new ArrayBuffer[Double]()
     var cont = true
     while (cont) {
       val pos = bb.position()
@@ -333,12 +317,12 @@ object GDBTable extends Serializable {
       val m4 = bb.get
       val m5 = bb.get
       if (m1 == 0 && m2 > 0 && m3 == 0 && m4 == 0 && m5 == 0) {
-        0 until m2 foreach (_ => numes += bb.getDouble)
+        0 until m2 foreach (_ => nume += bb.getDouble)
         cont = false
       }
       else {
         bb.position(pos)
-        numes += bb.getDouble
+        nume += bb.getDouble
       }
     }
 
@@ -353,11 +337,8 @@ object GDBTable extends Serializable {
       .putBoolean("hasZ", hasZ)
       .putBoolean("hasM", hasM)
     val metadata = metadataBuilder.build()
-    if (logger.isDebugEnabled) {
-      logger.debug(metadata.json)
-    }
+    // logger.debug(metadata.json)
 
-    // TODO - more shapes and support Z and M
     geometryType match {
       case 1 => // Point
         geometryProp match {
@@ -393,18 +374,29 @@ object GDBTable extends Serializable {
         new FieldGeomNoop(StructField(name, StringType, nullable, metadata))
     }
   }
-
 }
 
-class GDBTable(dataBuffer: DataBuffer, val maxRows: Int, val fields: Array[GDBField]) extends AutoCloseable with Serializable {
+class GDBTable(dataBuffer: DataBuffer,
+               header: GDBTableHeader,
+               context: Option[TaskContext]
+              ) extends TaskCompletionListener with AutoCloseable with Serializable {
 
-  val schema: StructType = StructType(fields.map(_.field()))
+  val schema: StructType = StructType(header.fields.map(_.field))
 
-  def rows(index: GDBIndex, numRows: Int = maxRows, startAtRow: Int = 0): Iterator[Row] = {
-    new GDBTableIterator(index.indices(numRows, startAtRow), dataBuffer, fields, schema)
+  def rows(index: GDBIndex, numRows: Int = header.numFeatures, startAtRow: Int = 0): Iterator[Row] = {
+    val fieldsCopy = header.fields.map(_.copy())
+    val iterator = new GDBTableIterator(index.indices(numRows, startAtRow), dataBuffer, fieldsCopy)
+    if (context.isDefined) {
+      context.get.addTaskCompletionListener(iterator)
+    }
+    iterator
   }
 
   override def close(): Unit = {
+    dataBuffer.close()
+  }
+
+  override def onTaskCompletion(context: TaskContext): Unit = {
     dataBuffer.close()
   }
 }

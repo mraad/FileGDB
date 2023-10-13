@@ -2,8 +2,13 @@ package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, Path}
+import org.apache.spark.TaskContext
+import org.apache.spark.internal.Logging
+import org.apache.spark.util.TaskCompletionListener
+import org.slf4j.LoggerFactory
 
 import java.nio.{ByteBuffer, ByteOrder}
+import scala.collection.mutable
 
 private[gdb] trait SeekReader extends Serializable {
   def readSeek(byteBuffer: ByteBuffer): Long
@@ -26,7 +31,11 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
                                     startID: Int,
                                     maxRows: Int,
                                     numBytesPerRow: Int
-                                   ) extends Iterator[GDBIndexRow] with Serializable {
+                                   )
+  extends Iterator[GDBIndexRow]
+    with TaskCompletionListener
+    with Logging
+    with Serializable {
 
   private val bytes = new Array[Byte](numBytesPerRow)
   private val byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
@@ -35,62 +44,101 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
     case 6 => new SeekReader6()
     case _ => new SeekReader4()
   }
-
   private var objectID = startID
   private var numRows = 0
   private var seek = 0L
-  // println(s"GDBIndexIterator::startID=$startID maxRows=$maxRows")
 
   def hasNext(): Boolean = {
-    while (numRows < maxRows) {
+    while (seek == 0L && numRows < maxRows) {
       numRows += 1
       objectID += 1
       byteBuffer.clear()
       dataInput.readFully(bytes, 0, numBytesPerRow)
       seek = seekReader.readSeek(byteBuffer) // 0 value indicates that the row is deleted.
-      if (seek > 0) {
-        return true
-      }
     }
-    false
+    seek > 0L
   }
 
   def next(): GDBIndexRow = {
-    GDBIndexRow(objectID, seek)
+    val row = GDBIndexRow(objectID, seek)
+    seek = 0L
+    row
+  }
+
+  override def onTaskCompletion(context: TaskContext): Unit = {
+    // logger.debug(s"onTaskCompletion:${context.partitionId()}:rows=$rows")
   }
 }
 
-class GDBIndex(dataInput: FSDataInputStream, val maxRows: Int, numBytesPerRow: Int) extends AutoCloseable with Serializable {
+class GDBIndex(dataInput: FSDataInputStream,
+               header: GDBIndexHeader,
+               context: Option[TaskContext]
+              ) extends TaskCompletionListener with AutoCloseable with Serializable {
 
-  def indices(numRows: Int = maxRows, startRow: Int = 0): Iterator[GDBIndexRow] = {
-    // println(s"indices::startRow=$startRow numRows=$numRows numBytesPerRow=$numBytesPerRow")
-    dataInput.seek(16L + startRow * numBytesPerRow)
-    new GDBIndexIterator(dataInput, startRow, numRows, numBytesPerRow)
+  // private val logger = LoggerFactory.getLogger(getClass)
+
+  def maxRows: Int = header.maxRows
+
+  def indices(numRows: Int = header.numRows, startRow: Int = 0): Iterator[GDBIndexRow] = {
+    // logger.debug(s"indices::numRows=$numRows numBytesPerRow=${header.numBytesPerRow} startRow=$startRow")
+    dataInput.seek(16L + startRow * header.numBytesPerRow)
+    val iterator = new GDBIndexIterator(dataInput, startRow, numRows, header.numBytesPerRow)
+    if (context.isDefined) {
+      context.get.addTaskCompletionListener(iterator)
+    }
+    iterator
   }
 
   override def close(): Unit = {
     dataInput.close()
   }
+
+  override def onTaskCompletion(context: TaskContext): Unit = {
+    dataInput.close()
+  }
+}
+
+case class GDBIndexHeader(version: Int, numPages: Int, numRows: Int, numBytesPerRow: Int) {
+  def maxRows: Int = numPages * 1024
+
+  override def toString: String = s"GDBHeader:version=$version, numPages=$numPages, numRows=$numRows, numBytesPerRow=$numBytesPerRow, maxRows=$maxRows"
 }
 
 object GDBIndex extends Serializable {
 
-  def apply(conf: Configuration, path: String, name: String): GDBIndex = {
-    // val logger = LoggerFactory.getLogger(getClass)
+  private val map = mutable.Map.empty[String, GDBIndexHeader]
+
+  def apply(conf: Configuration, path: String, name: String, context: Option[TaskContext] = None): GDBIndex = {
+    val logger = LoggerFactory.getLogger(getClass)
     val filename = StringBuilder.newBuilder.append(path).append("/").append(name).append(".gdbtablx").toString()
     val hdfsPath = new Path(filename)
     val dataInput = hdfsPath.getFileSystem(conf).open(hdfsPath)
-    val bytes = new Array[Byte](16)
-    dataInput.readFully(bytes)
-    val byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
 
-    byteBuffer.getInt // signature
-    val n1024Blocks = byteBuffer.getInt // n1024Blocks
-    val maxRows = byteBuffer.getInt
-    val numBytesPerRow = byteBuffer.getInt
-    // println(s"${Console.RED}$name::n1024Blocks=$n1024Blocks, maxRows=$maxRows, numBytesPerRow=$numBytesPerRow${Console.RESET}")
-    // new GDBIndex(dataInput, maxRows, numBytesPerRow)
-    new GDBIndex(dataInput, n1024Blocks * 1024, numBytesPerRow)
+    def readHeader: GDBIndexHeader = {
+      logger.debug(s"Cache $filename...")
+      val bytes = new Array[Byte](16)
+      dataInput.readFully(bytes)
+      val byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+      val version = byteBuffer.getInt // signature / version
+      val numPages = byteBuffer.getInt // A page has 1024 rows.
+      val numRows = byteBuffer.getInt
+      val numBytesPerRow = byteBuffer.getInt
+      GDBIndexHeader(version, numPages, numRows, numBytesPerRow)
+    }
+
+    val header = map.getOrElseUpdate(filename, readHeader)
+    new GDBIndex(dataInput, header, context)
   }
+
+  //  private def readBitmap(dataInputStream: FSDataInputStream): GDBBitmap = {
+  //    val bytes = new Array[Byte](GDBHeader.HeaderLength)
+  //    dataInputStream.readFully(bytes)
+  //    val byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+  //    val size = byteBuffer.getInt()
+  //    val numBits = byteBuffer.getInt()
+  //    val numSets = byteBuffer.getInt()
+  //    val lastBit = byteBuffer.getInt()
+  //    GDBBitmap(size, numBits, numSets, lastBit)
+  //  }
 
 }

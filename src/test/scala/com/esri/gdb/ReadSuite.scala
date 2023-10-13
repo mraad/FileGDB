@@ -15,13 +15,13 @@ class ReadSuite extends AnyFlatSpec with BeforeAndAfterAll {
     val hdfsPath = new Path(filename)
     val dataBuffer = new DataBuffer(hdfsPath.getFileSystem(conf).open(hdfsPath))
     try {
-      dataBuffer.position(4)
+      dataBuffer.seek(4L)
       val numFeatures = dataBuffer.getInt
       println(s"numFeatures=$numFeatures")
       val largestSize = dataBuffer.getInt
       println(s"largestSize=$largestSize")
       dataBuffer.resize(largestSize)
-      dataBuffer.position(32)
+      dataBuffer.seek(32L)
       val headerOffset = dataBuffer.getLong
       println(s"headerOffset=$headerOffset")
       dataBuffer.seek(headerOffset)

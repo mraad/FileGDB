@@ -15,20 +15,19 @@ class FieldXYM(val field: StructField,
 
   override type T = Row
 
+  override def copy(): GDBField = new FieldXYM(field, xOrig, yOrig, xyScale, mOrig, mScale)
+
   override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-
-    blob.getVarUInt // geomType
-
+    val _ = blob.getVarUInt() // geomType
     val vx = blob.getVarUInt()
     val vy = blob.getVarUInt()
     val vm = blob.getVarUInt()
     val x = (vx - 1.0) / xyScale + xOrig
     val y = (vy - 1.0) / xyScale + yOrig
     val m = (vm - 1.0) / mScale + mOrig
-
     Row(x, y, m)
   }
 }

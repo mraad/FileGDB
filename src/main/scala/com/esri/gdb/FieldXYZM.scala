@@ -17,13 +17,13 @@ class FieldXYZM(val field: StructField,
 
   override type T = Row
 
+  override def copy(): GDBField = new FieldXYZM(field, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+
   override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-
-    blob.getVarUInt // geomType
-
+    val _ = blob.getVarUInt() // geomType
     val vx = blob.getVarUInt()
     val vy = blob.getVarUInt()
     val vz = blob.getVarUInt()
@@ -32,7 +32,6 @@ class FieldXYZM(val field: StructField,
     val y = (vy - 1.0) / xyScale + yOrig
     val z = (vz - 1.0) / zScale + zOrig
     val m = (vm - 1.0) / mScale + mOrig
-
     Row(x, y, z, m)
   }
 }

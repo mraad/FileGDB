@@ -15,26 +15,19 @@ case class GDBRDD(hadoopConfSer: SerializableConfiguration,
 
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
     partition match {
-      case part: GDBPartition => {
-        // println(s"${Console.YELLOW}compute::startAtRow = ${part.startAtRow} numRowsToRead = ${part.numRowsToRead}${Console.RESET}")
-        // val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
-        // val conf = hadoopConfSer.value
-        val index = GDBIndex(hadoopConfSer.value, gdbPath, part.hexName)
-        val table = GDBTable(hadoopConfSer.value, gdbPath, part.hexName)
-        // Uncomment below when compiling for Spark 2.4.X - leave it commented for 2.3.X
-        context.addTaskCompletionListener[Unit](_ => {
-          table.close()
-          index.close()
-        })
+      case part: GDBPartition =>
+        val someContext = Some(context)
+        val index = GDBIndex(hadoopConfSer.value, gdbPath, part.hexName, someContext)
+        val table = GDBTable(hadoopConfSer.value, gdbPath, part.hexName, someContext)
+        context.addTaskCompletionListener(index)
+        context.addTaskCompletionListener(table)
         table.rows(index, part.numRowsToRead, part.startAtRow)
-      }
       case _ => Iterator.empty
     }
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = new ArrayBuffer[Partition](numPartitions)
-    // val conf = if (sc == null) new Configuration() else sc.hadoopConfiguration
     FileGDB.findTable(gdbPath, gdbName, hadoopConfSer.value) match {
       case Some(catTab) =>
         //        val table = GDBTable(conf, gdbPath, catTab.toTableName)
@@ -47,16 +40,13 @@ case class GDBRDD(hadoopConfSer: SerializableConfiguration,
           val maxRows = index.maxRows
           // println(s"${Console.YELLOW}getPartitions::tabRows=${table.maxRows} indRows=${index.maxRows}${Console.RESET}")
           if (maxRows > 0) {
-            // TODO - Make 1000 configurable.
-            val maxRowsPerPartition = if (maxRows <= 1024 /*|| maxRows <= numPartitions*/ )
+            val maxRowsPerPartition = if (maxRows <= 1024)
               maxRows
             else
               (maxRows / numPartitions.toDouble).ceil.toInt
-            // log.debug(s"max rows per partition=$maxRowsPerPartition")
             var startAtRow = 0
             while (startAtRow < maxRows) {
               val numRowsToRead = (maxRows - startAtRow) min maxRowsPerPartition
-              // println(s"startAtRow=$startAtRow numRowsToRead=$numRowsToRead")
               partitions append GDBPartition(partitions.length, catTab.toTableName, startAtRow, numRowsToRead)
               startAtRow += numRowsToRead
             }

@@ -13,12 +13,14 @@ class FieldMultiPoint(val field: StructField,
 
   override type T = Row
 
+  override def copy(): GDBField = new FieldMultiPoint(field, xOrig, yOrig, xyScale)
+
   override def readNull(): T = null.asInstanceOf[Row]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-    val _ = blob.getVarUInt
-    val numPoints = blob.getVarUInt.toInt
+    val _ = blob.getVarUInt()
+    val numPoints = blob.getVarUInt().toInt
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 2)
       val xmin = blob.getVarUInt / xyScale + xOrig

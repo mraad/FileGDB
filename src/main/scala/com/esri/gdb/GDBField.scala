@@ -9,15 +9,17 @@ import java.sql.Timestamp
 trait GDBField extends Serializable {
   type T
 
-  def field(): StructField
+  def field: StructField
 
-  def name(): String = field.name
+  def name: String = field.name
 
-  def nullable(): Boolean = field.nullable
+  def nullable: Boolean = field.nullable
 
   def readValue(byteBuffer: ByteBuffer, oid: Int): T
 
   def readNull(): T
+
+  def copy(): GDBField
 }
 
 class FieldFloat32(val field: StructField) extends GDBField {
@@ -28,6 +30,8 @@ class FieldFloat32(val field: StructField) extends GDBField {
   }
 
   def readNull(): Float = null.asInstanceOf[Float]
+
+  override def copy(): GDBField = new FieldFloat32(field)
 }
 
 class FieldFloat64(val field: StructField) extends GDBField {
@@ -38,6 +42,8 @@ class FieldFloat64(val field: StructField) extends GDBField {
   }
 
   def readNull(): Double = null.asInstanceOf[Double]
+
+  override def copy(): GDBField = new FieldFloat64(field)
 }
 
 class FieldInt16(val field: StructField) extends GDBField {
@@ -48,6 +54,8 @@ class FieldInt16(val field: StructField) extends GDBField {
   }
 
   def readNull(): Short = null.asInstanceOf[Short]
+
+  def copy(): GDBField = new FieldInt16(field)
 }
 
 class FieldInt32(val field: StructField) extends GDBField {
@@ -58,6 +66,8 @@ class FieldInt32(val field: StructField) extends GDBField {
   }
 
   def readNull(): Int = null.asInstanceOf[Int]
+
+  def copy(): GDBField = new FieldInt32(field)
 }
 
 class FieldUUID(val field: StructField) extends GDBField {
@@ -79,6 +89,8 @@ class FieldUUID(val field: StructField) extends GDBField {
       b(8), b(9), b(10), b(11),
       b(12), b(13), b(14), b(15))
   }
+
+  override def copy(): GDBField = new FieldUUID(field)
 }
 
 class FieldTimestamp(val field: StructField) extends GDBField {
@@ -93,19 +105,21 @@ class FieldTimestamp(val field: StructField) extends GDBField {
     val millis = (unixDays * 1000 * 60 * 60 * 24).ceil.toLong
     new Timestamp(millis) // TimeZone is GMT !
   }
+
+  override def copy(): GDBField = new FieldTimestamp(field)
 }
 
-class FieldMillis(val field: StructField) extends GDBField {
-  override type T = Long
-
-  def readNull(): Long = null.asInstanceOf[Long]
-
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Long = {
-    val numDays = byteBuffer.getDouble
-    val unixDays = numDays - 25569
-    (unixDays * 1000 * 60 * 60 * 24).ceil.toLong // TimeZone is GMT !
-  }
-}
+//class FieldMillis(val field: StructField) extends GDBField {
+//  override type T = Long
+//
+//  def readNull(): Long = null.asInstanceOf[Long]
+//
+//  override def readValue(byteBuffer: ByteBuffer, oid: Int): Long = {
+//    val numDays = byteBuffer.getDouble
+//    val unixDays = numDays - 25569
+//    (unixDays * 1000 * 60 * 60 * 24).ceil.toLong // TimeZone is GMT !
+//  }
+//}
 
 class FieldOID(val field: StructField) extends GDBField {
   override type T = Int
@@ -113,13 +127,15 @@ class FieldOID(val field: StructField) extends GDBField {
   def readNull(): Int = null.asInstanceOf[Int]
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Int = oid
+
+  override def copy(): GDBField = new FieldOID(field)
 }
 
 abstract class FieldBytes extends GDBField {
   protected var m_bytes = new Array[Byte](1024)
 
   def fillVarBytes(byteBuffer: ByteBuffer): Int = {
-    val numBytes = byteBuffer.getVarUInt.toInt
+    val numBytes = byteBuffer.getVarUInt().toInt
     if (numBytes > m_bytes.length) {
       m_bytes = new Array[Byte](numBytes)
     }
@@ -146,6 +162,8 @@ class FieldBinary(val field: StructField) extends FieldBytes {
   override def readValue(byteBuffer: ByteBuffer, oid: Int): ByteBuffer = {
     getByteBuffer(byteBuffer)
   }
+
+  override def copy(): GDBField = new FieldBinary(field)
 }
 
 class FieldString(val field: StructField) extends FieldBytes {
@@ -157,6 +175,8 @@ class FieldString(val field: StructField) extends FieldBytes {
     val numBytes = fillVarBytes(byteBuffer)
     new String(m_bytes, 0, numBytes, StandardCharsets.UTF_8)
   }
+
+  override def copy(): GDBField = new FieldString(field)
 }
 
 class FieldGeomNoop(val field: StructField) extends FieldBytes {
@@ -167,4 +187,6 @@ class FieldGeomNoop(val field: StructField) extends FieldBytes {
   override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     throw new RuntimeException("Should not have a NOOP geometry !")
   }
+
+  def copy(): GDBField = new FieldGeomNoop(field)
 }

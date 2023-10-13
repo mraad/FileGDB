@@ -2,10 +2,10 @@ package com.esri.gdb
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.sql.SparkSession
-import org.scalatest.{BeforeAndAfterAll, _}
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec._
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers._
 
 // @Ignore
 class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
@@ -23,22 +23,68 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
     super.beforeAll()
     sparkSession = SparkSession
       .builder()
-      .config("spark.serializer", classOf[KryoSerializer].getName)
-      .master("local")
+      .master("local[*]")
       .appName("GDBSuite")
-      .config("spark.ui.enabled", false)
+      .config("spark.ui.enabled", "false")
+      .config("spark.serializer", classOf[KryoSerializer].getName)
+      .config("spark.kryo.registrator", classOf[GDBRegistrator].getName)
       .config("spark.sql.warehouse.dir", "/tmp")
       .config("spark.sql.catalogImplementation", "in-memory")
       .getOrCreate()
   }
 
-  it should "test DSL" in {
-    val results = sparkSession
+  it should "test Random in gdb in resources" in {
+    sparkSession
       .sqlContext
-      .gdb(path, "test")
-      .collect()
+      .gdb(path, "Random")
+      .write
+      .format("parquet")
+      .mode(SaveMode.Overwrite)
+      .save("/tmp/tmp.prq")
+    val count = sparkSession.read.parquet("/tmp/tmp.prq").count()
+    count shouldBe 4710
+  }
 
-    results.length shouldBe numRec
+  it should "test SMP" in {
+    val format = "parquet"
+    sparkSession
+      .sqlContext
+      .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets", numPartitions = 8)
+      .select("Link_ID")
+      .write
+      .format("parquet")
+      .mode(SaveMode.Overwrite)
+      .save(f"/tmp/tmp.$format")
+    val count = sparkSession.read.format("parquet").load(f"/tmp/tmp.$format").count()
+    println(s"count=$count")
+  }
+
+  it should "test SMP Count" in {
+    val count = sparkSession
+      .sqlContext
+      .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets")
+      .count()
+    println(s"count=$count")
+  }
+
+  it should "test Miami.gdb" in {
+    sparkSession
+      .sqlContext
+      .gdb("/Users/mraad/data/Miami.gdb", "Broadcast")
+      .write
+      .format("noop")
+      .mode(SaveMode.Overwrite)
+      .save()
+  }
+
+  it should "test SMP_R4_Q3.gdb noop" in {
+    sparkSession
+      .sqlContext
+      .gdb(path = "/Users/mraad/data/SMP/SMP_R4_Q3.gdb", name = "Streets")
+      .write
+      .format("noop")
+      .mode(SaveMode.Overwrite)
+      .save()
   }
 
   override protected def afterAll(): Unit = {

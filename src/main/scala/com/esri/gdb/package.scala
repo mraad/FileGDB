@@ -9,20 +9,29 @@ import java.nio.ByteBuffer
 package object gdb {
 
   implicit class SparkContextImplicits(val sc: SparkContext) extends AnyVal {
-    def gdb(path: String, name: String, numPartitions: Int = 8): GDBRDD = {
+    def gdb(path: String,
+            name: String = "GDB_SystemCatalog",
+            numPartitions: Int = sc.getConf.getInt("spark.default.parallelism", 8)
+           ): GDBRDD = {
       GDBRDD(new SerializableConfiguration(sc.hadoopConfiguration), path, name, numPartitions)
     }
   }
 
   implicit class SQLContextImplicits(val sqlContext: SQLContext) extends AnyVal {
-    def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = {
+    def gdb(path: String,
+            name: String = "GDB_SystemCatalog",
+            numPartitions: Int = sqlContext.sparkContext.getConf.getInt("spark.default.parallelism", 8)
+           ): DataFrame = {
       val relation = GDBRelation(path, name, numPartitions)(sqlContext)
       sqlContext.baseRelationToDataFrame(relation)
     }
   }
 
   implicit class DataFrameReaderImplicits(val reader: DataFrameReader) extends AnyVal {
-    def gdb(path: String, name: String, numPartitions: Int = 8): DataFrame = reader
+    def gdb(path: String,
+            name: String = "GDB_SystemCatalog",
+            numPartitions: Int = 8
+           ): DataFrame = reader
       .format("gdb")
       .option(GDBOptions.PATH, path)
       .option(GDBOptions.NAME, name)
