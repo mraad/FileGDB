@@ -11,7 +11,6 @@ import org.scalatest.matchers.should.Matchers._
 class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
   // private val folder = "src/test/resources"
   private val path = "src/test/resources/test.gdb"
-  private val numRec = 4
   private var sparkSession: SparkSession = _
 
   Logger.getLogger("com.esri.gdb").setLevel(Level.DEBUG)
@@ -45,7 +44,7 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
     count shouldBe 4710
   }
 
-  it should "test SMP" in {
+  it should "Read SMP and write to parquet and count" in {
     val format = "parquet"
     sparkSession
       .sqlContext
@@ -59,7 +58,7 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
     println(s"count=$count")
   }
 
-  it should "test SMP Count" in {
+  it should "Read SMP and count" in {
     val count = sparkSession
       .sqlContext
       .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets")
@@ -67,7 +66,7 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
     println(s"count=$count")
   }
 
-  it should "test Miami.gdb" in {
+  it should "Read Miami.gdb" in {
     sparkSession
       .sqlContext
       .gdb("/Users/mraad/data/Miami.gdb", "Broadcast")
@@ -77,10 +76,20 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .save()
   }
 
-  it should "test SMP_R4_Q3.gdb noop" in {
+  it should "Read SMP_R4_Q3.gdb and write to noop" in {
     sparkSession
       .sqlContext
       .gdb(path = "/Users/mraad/data/SMP/SMP_R4_Q3.gdb", name = "Streets")
+      .write
+      .format("noop")
+      .mode(SaveMode.Overwrite)
+      .save()
+  }
+
+  it should "Read MultipointM" in {
+    sparkSession
+      .sqlContext
+      .gdb(path = "/Users/mraad/GWorkspace/FileGDB/data/multipointM.gdb", name = "multipointM")
       .write
       .format("noop")
       .mode(SaveMode.Overwrite)

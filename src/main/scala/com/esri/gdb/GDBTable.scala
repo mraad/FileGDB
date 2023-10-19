@@ -55,6 +55,7 @@ object GDBTable extends Serializable {
             case _ => "Unknown"
           }
           logger.debug(s"geometryType=$geometryType ($geometryTypeText)")
+          logger.debug(s"geometryProp=${geometryProp.toHexString}")
           logger.debug(s"hasZ=$hasZ hasM=$hasM")
           logger.debug(s"numFields=$numFields")
         }
@@ -351,7 +352,7 @@ object GDBTable extends Serializable {
       case 2 => // Multipoint
         geometryProp match {
           case 0x00 => FieldMultiPoint(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0x40 => FieldMultiPointZ(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
+          case 0x40 => FieldMultiPointM(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
           case 0x80 => FieldMultiPointZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
           case 0xC0 => FieldMultiPointZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) multipoint with geometryProp value of $geometryProp%X :-(")
