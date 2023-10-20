@@ -37,8 +37,8 @@ object GDBTable extends Serializable {
         val bb = dataBuffer.readBytes(headerLength)
         val gdbVer = bb.getInt
         val geometryType = bb.get & 0x00FF
+        val b1 = bb.get
         val b2 = bb.get
-        val b3 = bb.get
         val geometryProp = bb.get & 0x00FF
         val hasZ = (geometryProp & (1 << 7)) != 0
         val hasM = (geometryProp & (1 << 6)) != 0
@@ -307,7 +307,7 @@ object GDBTable extends Serializable {
     val mmin = if (hasM) bb.getDouble else 0.0
     val mmax = if (hasM) bb.getDouble else 0.0
     logger.debug(s"x=$xmin,$xmax y=$ymin,$ymax z=$zmin,$zmax m=$mmin,$mmax")
-    val byteAtZero = bb.get()
+    val byteZero = bb.get()
     val gridMax = bb.getInt()
     logger.debug(s"griMax=$gridMax")
     var gridInd = 0

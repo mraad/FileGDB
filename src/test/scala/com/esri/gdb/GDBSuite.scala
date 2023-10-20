@@ -9,7 +9,6 @@ import org.scalatest.matchers.should.Matchers._
 
 // @Ignore
 class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
-  // private val folder = "src/test/resources"
   private val path = "src/test/resources/test.gdb"
   private var sparkSession: SparkSession = _
 
@@ -69,7 +68,7 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
   it should "Read Miami.gdb" in {
     sparkSession
       .sqlContext
-      .gdb("/Users/mraad/data/Miami.gdb", "Broadcast")
+      .gdb("data/Miami.gdb", "Broadcast")
       .write
       .format("noop")
       .mode(SaveMode.Overwrite)
@@ -86,10 +85,10 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .save()
   }
 
-  it should "Read FileGDBTest/PolylineM" in {
+  it should "Read FileGDBTest/PolygonZ" in {
     sparkSession
       .sqlContext
-      .gdb(path = "/Users/mraad/GWorkspace/FileGDB/data/FileGDBTest.gdb", name = "PolylineM")
+      .gdb(path = "data/FileGDBTest.gdb", name = "PolygonZ")
       .write
       .format("noop")
       .mode(SaveMode.Overwrite)

@@ -20,7 +20,7 @@ class FieldMultiPartZ(val field: StructField, origScale: OrigScale) extends Fiel
     val numPoints = blob.getVarUInt().toInt
     // println(f"geomType=$geomType%X numPoints=$numPoints")
     if (numPoints > 0) {
-      val coords = new Array[Double](numPoints * 4)
+      val coords = new Array[Double](numPoints * 3)
       val numParts = blob.getVarUInt().toInt
       val _ = if (hasCurveDesc) blob.getVarUInt() else 0
       val xmin = blob.getVarUInt / origScale.xyScale + origScale.xOrig
