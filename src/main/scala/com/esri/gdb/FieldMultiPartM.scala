@@ -79,7 +79,7 @@ class FieldMultiPartM(val field: StructField, origScale: OrigScale) extends Fiel
         }
         while (n < numPoints) {
           dm += blob.getVarInt
-          coords(im) = dm / origScale.mScale + origScale.mOrig
+          coords(im) = origScale.calcM(dm)
           im += 3
           n += 1
         }
@@ -113,7 +113,7 @@ class FieldMultiPartM(val field: StructField, origScale: OrigScale) extends Fiel
         }
         while (n < numPoints) {
           dm += blob.getVarInt
-          coords(im) = dm / origScale.mScale + origScale.mOrig
+          coords(im) = origScale.calcM(dm)
           im += 3
           n += 1
         }

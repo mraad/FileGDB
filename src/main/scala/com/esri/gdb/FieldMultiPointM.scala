@@ -52,7 +52,7 @@ class FieldMultiPointM(val field: StructField, origScale: OrigScale) extends Fie
         blob.reset()
         while (n < numPoints) {
           dm += blob.getVarInt
-          coords(im) = dm / origScale.mScale + origScale.mOrig
+          coords(im) = origScale.calcM(dm)
           im += 3
           n += 1
         }

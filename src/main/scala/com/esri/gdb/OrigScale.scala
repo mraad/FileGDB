@@ -6,4 +6,7 @@ case class OrigScale(xOrig: Double,
                      zOrig: Double,
                      zScale: Double,
                      mOrig: Double,
-                     mScale: Double)
+                     mScale: Double) {
+  @inline
+  def calcM(dm: Long): Double = if (dm == -1) Double.NaN else dm / mScale + mOrig
+}
