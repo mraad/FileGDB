@@ -5,11 +5,11 @@ import org.apache.spark.sql.types._
 
 import java.nio.ByteBuffer
 
-class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends FieldBytes {
+class FieldMultiPartM(val field: StructField, origScale: OrigScale) extends FieldBytes {
 
   override type T = Row
 
-  override def copy(): GDBField = new FieldMultiPartZM(field, origScale)
+  override def copy(): GDBField = new FieldMultiPartM(field, origScale)
 
   override def readNull(): T = null.asInstanceOf[Row]
 
@@ -18,9 +18,8 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
     val geomType = blob.getVarUInt()
     val hasCurveDesc = (geomType & 0x20000000L) != 0L
     val numPoints = blob.getVarUInt().toInt
-    // println(f"geomType=$geomType%X numPoints=$numPoints")
     if (numPoints > 0) {
-      val coords = new Array[Double](numPoints * 4)
+      val coords = new Array[Double](numPoints * 3)
       val numParts = blob.getVarUInt().toInt
       // println(f"numParts=$numParts")
       val _ = if (hasCurveDesc) blob.getVarUInt() else 0
@@ -31,12 +30,10 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
 
       var dx = 0L
       var dy = 0L
-      var dz = 0L
       var dm = 0L
       var ix = 0
       var iy = 1
-      var iz = 2
-      var im = 3
+      var im = 2
 
       if (numParts > 1) {
         // TODO - Handle multi-part ZM correctly !
@@ -61,21 +58,12 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
             dy += blob.getVarInt
             coords(ix) = dx / origScale.xyScale + origScale.xOrig
             coords(iy) = dy / origScale.xyScale + origScale.yOrig
-            ix += 4
-            iy += 4
+            ix += 3
+            iy += 3
             n += 1
           }
           p += 1
         }
-
-        n = 0
-        while (n < numPoints) {
-          dz += blob.getVarInt
-          coords(iz) = dz / origScale.zScale + origScale.zOrig
-          iz += 4
-          n += 1
-        }
-
         n = 0
         blob.mark()
         val hasM = blob.get()
@@ -83,7 +71,7 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
           // 0x42 seems to be a special value to indicate absence of m array !
           while (n < numPoints) {
             coords(im) = Double.NaN
-            im += 4
+            im += 3
             n += 1
           }
         } else {
@@ -92,7 +80,7 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
         while (n < numPoints) {
           dm += blob.getVarInt
           coords(im) = dm / origScale.mScale + origScale.mOrig
-          im += 4
+          im += 3
           n += 1
         }
 
@@ -106,15 +94,8 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
           dy += blob.getVarInt
           coords(ix) = dx / origScale.xyScale + origScale.xOrig
           coords(iy) = dy / origScale.xyScale + origScale.yOrig
-          ix += 4
-          iy += 4
-          n += 1
-        }
-        n = 0
-        while (n < numPoints) {
-          dz += blob.getVarInt
-          coords(iz) = dz / origScale.zScale + origScale.zOrig
-          iz += 4
+          ix += 3
+          iy += 3
           n += 1
         }
         n = 0
@@ -124,7 +105,7 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
           // 0x42 seems to be a special value to indicate absence of m array !
           while (n < numPoints) {
             coords(im) = Double.NaN
-            im += 4
+            im += 3
             n += 1
           }
         } else {
@@ -133,7 +114,7 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
         while (n < numPoints) {
           dm += blob.getVarInt
           coords(im) = dm / origScale.mScale + origScale.mOrig
-          im += 4
+          im += 3
           n += 1
         }
         Row(xmin, ymin, xmax, ymax, Array(numPoints), coords)
@@ -144,9 +125,9 @@ class FieldMultiPartZM(val field: StructField, origScale: OrigScale) extends Fie
   }
 }
 
-object FieldMultiPartZM extends Serializable {
-  def apply(name: String, nullable: Boolean, metadata: Metadata, origScale: OrigScale): FieldMultiPartZM = {
-    new FieldMultiPartZM(StructField(name,
+object FieldMultiPartM extends Serializable {
+  def apply(name: String, nullable: Boolean, metadata: Metadata, origScale: OrigScale): FieldMultiPartM = {
+    new FieldMultiPartM(StructField(name,
       StructType(Seq(
         StructField("xmin", DoubleType, nullable),
         StructField("ymin", DoubleType, nullable),

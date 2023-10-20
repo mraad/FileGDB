@@ -5,19 +5,11 @@ import org.apache.spark.sql.types._
 
 import java.nio.ByteBuffer
 
-class FieldMultiPointZM(val field: StructField,
-                        xOrig: Double,
-                        yOrig: Double,
-                        xyScale: Double,
-                        zOrig: Double,
-                        zScale: Double,
-                        mOrig: Double,
-                        mScale: Double,
-                       ) extends FieldBytes {
+class FieldMultiPointZM(val field: StructField, origScale: OrigScale) extends FieldBytes {
 
   override type T = Row
 
-  override def copy(): GDBField = new FieldMultiPointZM(field, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+  override def copy(): GDBField = new FieldMultiPointZM(field, origScale)
 
   override def readNull(): T = null.asInstanceOf[Row]
 
@@ -27,10 +19,10 @@ class FieldMultiPointZM(val field: StructField,
     val numPoints = blob.getVarUInt().toInt
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 4)
-      val xmin = blob.getVarUInt / xyScale + xOrig
-      val ymin = blob.getVarUInt / xyScale + yOrig
-      val xmax = blob.getVarUInt / xyScale + xmin
-      val ymax = blob.getVarUInt / xyScale + ymin
+      val xmin = blob.getVarUInt / origScale.xyScale + origScale.xOrig
+      val ymin = blob.getVarUInt / origScale.xyScale + origScale.yOrig
+      val xmax = blob.getVarUInt / origScale.xyScale + xmin
+      val ymax = blob.getVarUInt / origScale.xyScale + ymin
 
       var dx = 0L
       var dy = 0L
@@ -44,8 +36,8 @@ class FieldMultiPointZM(val field: StructField,
       while (n < numPoints) {
         dx += blob.getVarInt
         dy += blob.getVarInt
-        coords(ix) = dx / xyScale + xOrig
-        coords(iy) = dy / xyScale + yOrig
+        coords(ix) = dx / origScale.xyScale + origScale.xOrig
+        coords(iy) = dy / origScale.xyScale + origScale.yOrig
         ix += 4
         iy += 4
         n += 1
@@ -53,13 +45,13 @@ class FieldMultiPointZM(val field: StructField,
       n = 0
       while (n < numPoints) {
         dz += blob.getVarInt
-        coords(iz) = dz / zScale + zOrig
+        coords(iz) = dz / origScale.zScale + origScale.zOrig
         iz += 4
         n += 1
       }
       n = 0
       blob.mark()
-      if(blob.get() == 0x42) {
+      if (blob.get() == 0x42) {
         while (n < numPoints) {
           coords(im) = Double.NaN
           im += 4
@@ -69,7 +61,7 @@ class FieldMultiPointZM(val field: StructField,
         blob.reset()
         while (n < numPoints) {
           dm += blob.getVarInt
-          coords(im) = dm / mScale + mOrig
+          coords(im) = dm / origScale.mScale + origScale.mOrig
           im += 4
           n += 1
         }
@@ -82,17 +74,7 @@ class FieldMultiPointZM(val field: StructField,
 }
 
 object FieldMultiPointZM extends Serializable {
-  def apply(name: String,
-            nullable: Boolean,
-            metadata: Metadata,
-            xOrig: Double,
-            yOrig: Double,
-            xyScale: Double,
-            zOrig: Double,
-            zScale: Double,
-            mOrig: Double,
-            mScale: Double,
-           ): FieldMultiPointZM = {
+  def apply(name: String, nullable: Boolean, metadata: Metadata, origScale: OrigScale): FieldMultiPointZM = {
     new FieldMultiPointZM(StructField(name,
       StructType(Seq(
         StructField("xmin", DoubleType, nullable),
@@ -101,6 +83,6 @@ object FieldMultiPointZM extends Serializable {
         StructField("ymax", DoubleType, nullable),
         StructField("parts", ArrayType(IntegerType), nullable),
         StructField("coords", ArrayType(DoubleType), nullable)
-      )), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+      )), nullable, metadata), origScale)
   }
 }

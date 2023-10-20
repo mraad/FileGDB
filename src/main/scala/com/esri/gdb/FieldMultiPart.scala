@@ -5,13 +5,9 @@ import org.apache.spark.sql.types._
 
 import java.nio.ByteBuffer
 
-class FieldMultiPart(val field: StructField,
-                     xOrig: Double,
-                     yOrig: Double,
-                     xyScale: Double
-                    ) extends FieldBytes {
+class FieldMultiPart(val field: StructField, origScale: OrigScale) extends FieldBytes {
 
-  override def copy(): GDBField = new FieldMultiPart(field, xOrig, yOrig, xyScale)
+  override def copy(): GDBField = new FieldMultiPart(field, origScale)
 
   override type T = Row
 
@@ -27,10 +23,10 @@ class FieldMultiPart(val field: StructField,
       val coords = new Array[Double](numPoints * 2)
       val numParts = blob.getVarUInt().toInt
       val _ = if (hasCurveDesc) blob.getVarUInt() else 0
-      val xmin = blob.getVarUInt / xyScale + xOrig
-      val ymin = blob.getVarUInt / xyScale + yOrig
-      val xmax = blob.getVarUInt / xyScale + xmin
-      val ymax = blob.getVarUInt / xyScale + ymin
+      val xmin = blob.getVarUInt / origScale.xyScale + origScale.xOrig
+      val ymin = blob.getVarUInt / origScale.xyScale + origScale.yOrig
+      val xmax = blob.getVarUInt / origScale.xyScale + xmin
+      val ymax = blob.getVarUInt / origScale.xyScale + ymin
 
       var dx = 0L
       var dy = 0L
@@ -59,8 +55,8 @@ class FieldMultiPart(val field: StructField,
           while (n < numPointsInPart) {
             dx += blob.getVarInt
             dy += blob.getVarInt
-            coords(ix) = dx / xyScale + xOrig
-            coords(iy) = dy / xyScale + yOrig
+            coords(ix) = dx / origScale.xyScale + origScale.xOrig
+            coords(iy) = dy / origScale.xyScale + origScale.yOrig
             ix += 2
             iy += 2
             n += 1
@@ -74,8 +70,8 @@ class FieldMultiPart(val field: StructField,
         while (n < numPoints) {
           dx += blob.getVarInt
           dy += blob.getVarInt
-          coords(ix) = dx / xyScale + xOrig
-          coords(iy) = dy / xyScale + yOrig
+          coords(ix) = dx / origScale.xyScale + origScale.xOrig
+          coords(iy) = dy / origScale.xyScale + origScale.yOrig
           ix += 2
           iy += 2
           n += 1
@@ -89,13 +85,7 @@ class FieldMultiPart(val field: StructField,
 }
 
 object FieldMultiPart extends Serializable {
-  def apply(name: String,
-            nullable: Boolean,
-            metadata: Metadata,
-            xOrig: Double,
-            yOrig: Double,
-            xyScale: Double
-           ): FieldMultiPart = {
+  def apply(name: String, nullable: Boolean, metadata: Metadata, origScale: OrigScale): FieldMultiPart = {
     new FieldMultiPart(StructField(name,
       StructType(Seq(
         StructField("xmin", DoubleType, nullable),
@@ -104,6 +94,6 @@ object FieldMultiPart extends Serializable {
         StructField("ymax", DoubleType, nullable),
         StructField("parts", ArrayType(IntegerType), nullable),
         StructField("coords", ArrayType(DoubleType), nullable)
-      )), nullable, metadata), xOrig, yOrig, xyScale)
+      )), nullable, metadata), origScale)
   }
 }

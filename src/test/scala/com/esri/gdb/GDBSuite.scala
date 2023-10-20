@@ -86,10 +86,10 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .save()
   }
 
-  it should "Read MultipointM" in {
+  it should "Read FileGDBTest/PolylineM" in {
     sparkSession
       .sqlContext
-      .gdb(path = "/Users/mraad/GWorkspace/FileGDB/data/multipointM.gdb", name = "multipointM")
+      .gdb(path = "/Users/mraad/GWorkspace/FileGDB/data/FileGDBTest.gdb", name = "PolylineM")
       .write
       .format("noop")
       .mode(SaveMode.Overwrite)

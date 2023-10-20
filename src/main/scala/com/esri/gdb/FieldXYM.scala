@@ -5,17 +5,11 @@ import org.apache.spark.sql.types.{DoubleType, Metadata, StructField, StructType
 
 import java.nio.ByteBuffer
 
-class FieldXYM(val field: StructField,
-               xOrig: Double,
-               yOrig: Double,
-               xyScale: Double,
-               mOrig: Double,
-               mScale: Double
-              ) extends FieldBytes {
+class FieldXYM(val field: StructField, origScale: OrigScale) extends FieldBytes {
 
   override type T = Row
 
-  override def copy(): GDBField = new FieldXYM(field, xOrig, yOrig, xyScale, mOrig, mScale)
+  override def copy(): GDBField = new FieldXYM(field, origScale)
 
   override def readNull(): T = null.asInstanceOf[Row]
 
@@ -25,9 +19,9 @@ class FieldXYM(val field: StructField,
     val vx = blob.getVarUInt()
     val vy = blob.getVarUInt()
     val vm = blob.getVarUInt()
-    val x = (vx - 1.0) / xyScale + xOrig
-    val y = (vy - 1.0) / xyScale + yOrig
-    val m = (vm - 1.0) / mScale + mOrig
+    val x = (vx - 1.0) / origScale.xyScale + origScale.xOrig
+    val y = (vy - 1.0) / origScale.xyScale + origScale.yOrig
+    val m = (vm - 1.0) / origScale.mScale + origScale.mOrig
     Row(x, y, m)
   }
 }
@@ -36,17 +30,13 @@ object FieldXYM extends Serializable {
   def apply(name: String,
             nullable: Boolean,
             metadata: Metadata,
-            xOrig: Double,
-            yOrig: Double,
-            xyScale: Double,
-            mOrig: Double,
-            mScale: Double
+            origScale: OrigScale
            ): FieldXYM = {
     new FieldXYM(StructField(name,
       StructType(Seq(
         StructField("x", DoubleType, nullable),
         StructField("y", DoubleType, nullable),
         StructField("m", DoubleType, nullable)
-      )), nullable, metadata), xOrig, yOrig, xyScale, mOrig, mScale)
+      )), nullable, metadata), origScale)
   }
 }

@@ -5,15 +5,11 @@ import org.apache.spark.sql.types._
 
 import java.nio.ByteBuffer
 
-class FieldMultiPoint(val field: StructField,
-                      xOrig: Double,
-                      yOrig: Double,
-                      xyScale: Double
-                     ) extends FieldBytes {
+class FieldMultiPoint(val field: StructField, origScale: OrigScale) extends FieldBytes {
 
   override type T = Row
 
-  override def copy(): GDBField = new FieldMultiPoint(field, xOrig, yOrig, xyScale)
+  override def copy(): GDBField = new FieldMultiPoint(field, origScale)
 
   override def readNull(): T = null.asInstanceOf[Row]
 
@@ -23,10 +19,10 @@ class FieldMultiPoint(val field: StructField,
     val numPoints = blob.getVarUInt().toInt
     if (numPoints > 0) {
       val coords = new Array[Double](numPoints * 2)
-      val xmin = blob.getVarUInt / xyScale + xOrig
-      val ymin = blob.getVarUInt / xyScale + yOrig
-      val xmax = blob.getVarUInt / xyScale + xmin
-      val ymax = blob.getVarUInt / xyScale + ymin
+      val xmin = blob.getVarUInt / origScale.xyScale + origScale.xOrig
+      val ymin = blob.getVarUInt / origScale.xyScale + origScale.yOrig
+      val xmax = blob.getVarUInt / origScale.xyScale + xmin
+      val ymax = blob.getVarUInt / origScale.xyScale + ymin
 
       var dx = 0L
       var dy = 0L
@@ -36,8 +32,8 @@ class FieldMultiPoint(val field: StructField,
       while (n < numPoints) {
         dx += blob.getVarInt
         dy += blob.getVarInt
-        coords(ix) = dx / xyScale + xOrig
-        coords(iy) = dy / xyScale + yOrig
+        coords(ix) = dx / origScale.xyScale + origScale.xOrig
+        coords(iy) = dy / origScale.xyScale + origScale.yOrig
         ix += 2
         iy += 2
         n += 1
@@ -50,13 +46,7 @@ class FieldMultiPoint(val field: StructField,
 }
 
 object FieldMultiPoint extends Serializable {
-  def apply(name: String,
-            nullable: Boolean,
-            metadata: Metadata,
-            xOrig: Double,
-            yOrig: Double,
-            xyScale: Double
-           ): FieldMultiPoint = {
+  def apply(name: String, nullable: Boolean, metadata: Metadata, origScale: OrigScale): FieldMultiPoint = {
     new FieldMultiPoint(StructField(name,
       StructType(Seq(
         StructField("xmin", DoubleType, nullable),
@@ -65,6 +55,6 @@ object FieldMultiPoint extends Serializable {
         StructField("ymax", DoubleType, nullable),
         StructField("parts", ArrayType(IntegerType), nullable),
         StructField("coords", ArrayType(DoubleType), nullable)
-      )), nullable, metadata), xOrig, yOrig, xyScale)
+      )), nullable, metadata), origScale)
   }
 }

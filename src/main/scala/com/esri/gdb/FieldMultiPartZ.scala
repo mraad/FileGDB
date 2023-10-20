@@ -5,11 +5,11 @@ import org.apache.spark.sql.types._
 
 import java.nio.ByteBuffer
 
-class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xyScale: Double, zOrig: Double, zScale: Double) extends FieldBytes {
+class FieldMultiPartZ(val field: StructField, origScale: OrigScale) extends FieldBytes {
 
   override type T = Row
 
-  override def copy(): GDBField = new FieldMultiPartZ(field, xOrig, yOrig, xyScale, zOrig, zScale)
+  override def copy(): GDBField = new FieldMultiPartZ(field, origScale)
 
   override def readNull(): T = null.asInstanceOf[Row]
 
@@ -23,10 +23,10 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
       val coords = new Array[Double](numPoints * 4)
       val numParts = blob.getVarUInt().toInt
       val _ = if (hasCurveDesc) blob.getVarUInt() else 0
-      val xmin = blob.getVarUInt / xyScale + xOrig
-      val ymin = blob.getVarUInt / xyScale + yOrig
-      val xmax = blob.getVarUInt / xyScale + xmin
-      val ymax = blob.getVarUInt / xyScale + ymin
+      val xmin = blob.getVarUInt / origScale.xyScale + origScale.xOrig
+      val ymin = blob.getVarUInt / origScale.xyScale + origScale.yOrig
+      val xmax = blob.getVarUInt / origScale.xyScale + xmin
+      val ymax = blob.getVarUInt / origScale.xyScale + ymin
 
       var dx = 0L
       var dy = 0L
@@ -36,7 +36,6 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
       var iz = 2
 
       if (numParts > 1) {
-        // TODO - Check on this !
         val parts = new Array[Int](numParts)
         var p = 0
         var n = 1
@@ -56,8 +55,8 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
           while (n < numPointsInPart) {
             dx += blob.getVarInt
             dy += blob.getVarInt
-            coords(ix) = dx / xyScale + xOrig
-            coords(iy) = dy / xyScale + yOrig
+            coords(ix) = dx / origScale.xyScale + origScale.xOrig
+            coords(iy) = dy / origScale.xyScale + origScale.yOrig
             ix += 3
             iy += 3
             n += 1
@@ -67,7 +66,7 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
         n = 0
         while (n < numPoints) {
           dz += blob.getVarInt
-          coords(iz) = dz / zScale + zOrig
+          coords(iz) = dz / origScale.zScale + origScale.zOrig
           iz += 3
           n += 1
         }
@@ -78,8 +77,8 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
         while (n < numPoints) {
           dx += blob.getVarInt
           dy += blob.getVarInt
-          coords(ix) = dx / xyScale + xOrig
-          coords(iy) = dy / xyScale + yOrig
+          coords(ix) = dx / origScale.xyScale + origScale.xOrig
+          coords(iy) = dy / origScale.xyScale + origScale.yOrig
           ix += 3
           iy += 3
           n += 1
@@ -87,7 +86,7 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
         n = 0
         while (n < numPoints) {
           dz += blob.getVarInt
-          coords(iz) = dz / zScale + zOrig
+          coords(iz) = dz / origScale.zScale + origScale.zOrig
           iz += 3
           n += 1
         }
@@ -100,15 +99,7 @@ class FieldMultiPartZ(val field: StructField, xOrig: Double, yOrig: Double, xySc
 }
 
 object FieldMultiPartZ extends Serializable {
-  def apply(name: String,
-            nullable: Boolean,
-            metadata: Metadata,
-            xOrig: Double,
-            yOrig: Double,
-            xyScale: Double,
-            zOrig: Double,
-            zScale: Double
-           ): FieldMultiPartZ = {
+  def apply(name: String, nullable: Boolean, metadata: Metadata, origScale: OrigScale): FieldMultiPartZ = {
     new FieldMultiPartZ(StructField(name,
       StructType(Seq(
         StructField("xmin", DoubleType, nullable),
@@ -117,6 +108,6 @@ object FieldMultiPartZ extends Serializable {
         StructField("ymax", DoubleType, nullable),
         StructField("parts", ArrayType(IntegerType), nullable),
         StructField("coords", ArrayType(DoubleType), nullable))
-      ), nullable, metadata), xOrig, yOrig, xyScale, zOrig, zScale)
+      ), nullable, metadata), origScale)
   }
 }

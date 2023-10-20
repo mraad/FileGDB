@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory
 
 import java.nio.ByteBuffer
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 case class GDBTableHeader(numFeatures: Int, largestSize: Int, fields: Array[GDBField])
 
@@ -286,8 +285,7 @@ object GDBTable extends Serializable {
       case _ => (false, false)
     }
 
-    //    if (logger.isDebugEnabled)
-    //      logger.debug(f"geomType=$geometryType%X geomProp=$geometryProp%X getZ=$getZ getM=$getM hasZ=$hasZ hasM=$hasM")
+    logger.debug(f"geomType=$geometryType%X geomProp=$geometryProp%X getZ=$getZ getM=$getM hasZ=$hasZ hasM=$hasM")
 
     val xOrig = bb.getDouble
     val yOrig = bb.getDouble
@@ -299,76 +297,74 @@ object GDBTable extends Serializable {
     val xyTolerance = bb.getDouble
     val mTolerance = if (getM) bb.getDouble else 0.0
     val zTolerance = if (getZ) bb.getDouble else 0.0
+    logger.debug(s"xyTolerance=$xyTolerance mTolerance=$mTolerance zTolerance=$zTolerance")
     val xmin = bb.getDouble
     val ymin = bb.getDouble
     val xmax = bb.getDouble
     val ymax = bb.getDouble
-    //    val zmin = if (getZ) bb.getDouble else 0.0
-    //    val zmax = if (getZ) bb.getDouble else 0.0
-    //    val mmin = if (getM) bb.getDouble else 0.0
-    //    val mmax = if (getM) bb.getDouble else 0.0
-    // Not sure what does !!
-    val nume = new ArrayBuffer[Double]()
-    var cont = true
-    while (cont) {
-      val pos = bb.position()
-      val m1 = bb.get
-      val m2 = bb.get
-      val m3 = bb.get
-      val m4 = bb.get
-      val m5 = bb.get
-      if (m1 == 0 && m2 > 0 && m3 == 0 && m4 == 0 && m5 == 0) {
-        0 until m2 foreach (_ => nume += bb.getDouble)
-        cont = false
-      }
-      else {
-        bb.position(pos)
-        nume += bb.getDouble
-      }
+    val zmin = if (hasZ) bb.getDouble else 0.0
+    val zmax = if (hasZ) bb.getDouble else 0.0
+    val mmin = if (hasM) bb.getDouble else 0.0
+    val mmax = if (hasM) bb.getDouble else 0.0
+    logger.debug(s"x=$xmin,$xmax y=$ymin,$ymax z=$zmin,$zmax m=$mmin,$mmax")
+    val byteAtZero = bb.get()
+    val gridMax = bb.getInt()
+    logger.debug(s"griMax=$gridMax")
+    var gridInd = 0
+    while (gridInd < gridMax) {
+      bb.getDouble()
+      gridInd += 1
     }
 
     val metadataBuilder = new MetadataBuilder()
       .putString("alias", alias)
       .putString("srsWKT", wkt)
       .putDouble("xmin", xmin)
-      .putDouble("ymin", ymin)
       .putDouble("xmax", xmax)
+      .putDouble("ymin", ymin)
       .putDouble("ymax", ymax)
+      .putDouble("zmin", zmin)
+      .putDouble("zmax", zmax)
+      .putDouble("mmin", mmin)
+      .putDouble("mmax", mmax)
       .putLong("geomType", geometryType)
       .putBoolean("hasZ", hasZ)
       .putBoolean("hasM", hasM)
     val metadata = metadataBuilder.build()
     // logger.debug(metadata.json)
 
+    val origScale = OrigScale(xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
     geometryType match {
       case 1 => // Point
         geometryProp match {
-          case 0x00 => FieldXY(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0x40 => FieldXYM(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
-          case 0x80 => FieldXYZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
-          case 0xC0 => FieldXYZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x00 => FieldXY(name, nullable, metadata, origScale)
+          case 0x40 => FieldXYM(name, nullable, metadata, origScale)
+          case 0x80 => FieldXYZ(name, nullable, metadata, origScale)
+          case 0xC0 => FieldXYZM(name, nullable, metadata, origScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) point with geometryProp value of $geometryProp%X :-(")
         }
       case 2 => // Multipoint
         geometryProp match {
-          case 0x00 => FieldMultiPoint(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0x40 => FieldMultiPointM(name, nullable, metadata, xOrig, yOrig, xyScale, mOrig, mScale)
-          case 0x80 => FieldMultiPointZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
-          case 0xC0 => FieldMultiPointZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x00 => FieldMultiPoint(name, nullable, metadata, origScale)
+          case 0x40 => FieldMultiPointM(name, nullable, metadata, origScale)
+          case 0x80 => FieldMultiPointZ(name, nullable, metadata, origScale)
+          case 0xC0 => FieldMultiPointZM(name, nullable, metadata, origScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) multipoint with geometryProp value of $geometryProp%X :-(")
         }
       case 3 => // Polyline
         geometryProp match {
-          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
-          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x00 => FieldMultiPart(name, nullable, metadata, origScale)
+          case 0x40 => FieldMultiPartM(name, nullable, metadata, origScale)
+          case 0x80 => FieldMultiPartZ(name, nullable, metadata, origScale)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, origScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polyline with geometryProp value of $geometryProp%X :-(")
         }
       case 4 | 5 => // Polygon
         geometryProp match {
-          case 0x00 => FieldMultiPart(name, nullable, metadata, xOrig, yOrig, xyScale)
-          case 0x80 => FieldMultiPartZ(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale)
-          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, xOrig, yOrig, xyScale, zOrig, zScale, mOrig, mScale)
+          case 0x00 => FieldMultiPart(name, nullable, metadata, origScale)
+          case 0x40 => FieldMultiPartM(name, nullable, metadata, origScale)
+          case 0x80 => FieldMultiPartZ(name, nullable, metadata, origScale)
+          case 0xC0 => FieldMultiPartZM(name, nullable, metadata, origScale)
           case _ => throw new RuntimeException(f"Cannot parse (yet) polygons with geometryProp value of $geometryProp%X :-(")
         }
       case _ =>
