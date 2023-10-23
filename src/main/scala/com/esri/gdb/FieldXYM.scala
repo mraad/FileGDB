@@ -15,14 +15,18 @@ class FieldXYM(val field: StructField, origScale: OrigScale) extends FieldBytes 
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-    val _ = blob.getVarUInt() // geomType
+    val _ = blob.getVarUInt() // Geometry type.
     val vx = blob.getVarUInt()
-    val vy = blob.getVarUInt()
-    val vm = blob.getVarUInt()
-    val x = (vx - 1.0) / origScale.xyScale + origScale.xOrig
-    val y = (vy - 1.0) / origScale.xyScale + origScale.yOrig
-    val m = (vm - 1.0) / origScale.mScale + origScale.mOrig
-    Row(x, y, m)
+    if (vx != 0L) { // Check if not empty.
+      val vy = blob.getVarUInt()
+      val vm = blob.getVarUInt()
+      val x = (vx - 1.0) / origScale.xyScale + origScale.xOrig
+      val y = (vy - 1.0) / origScale.xyScale + origScale.yOrig
+      val m = (vm - 1.0) / origScale.mScale + origScale.mOrig
+      Row(x, y, m)
+    } else {
+      Row(Double.NaN, Double.NaN, Double.NaN)
+    }
   }
 }
 

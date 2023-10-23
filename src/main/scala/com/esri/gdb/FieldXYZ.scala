@@ -15,14 +15,18 @@ class FieldXYZ(val field: StructField, origScale: OrigScale) extends FieldBytes 
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): Row = {
     val blob = getByteBuffer(byteBuffer)
-    val _ = blob.getVarUInt() // geomType
+    val _ = blob.getVarUInt() // Geometry type.
     val vx = blob.getVarUInt()
-    val vy = blob.getVarUInt()
-    val vz = blob.getVarUInt()
-    val x = (vx - 1.0) / origScale.xyScale + origScale.xOrig
-    val y = (vy - 1.0) / origScale.xyScale + origScale.yOrig
-    val z = (vz - 1.0) / origScale.zScale + origScale.zOrig
-    Row(x, y, z)
+    if (vx != 0L) { // Check if not empty.
+      val vy = blob.getVarUInt()
+      val vz = blob.getVarUInt()
+      val x = (vx - 1.0) / origScale.xyScale + origScale.xOrig
+      val y = (vy - 1.0) / origScale.xyScale + origScale.yOrig
+      val z = (vz - 1.0) / origScale.zScale + origScale.zOrig
+      Row(x, y, z)
+    } else {
+      Row(Double.NaN, Double.NaN, Double.NaN)
+    }
   }
 }
 
