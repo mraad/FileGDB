@@ -2,15 +2,37 @@ package com.esri.gdb
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.StructType
 
 
-class FileGDB(index: GDBIndex, table: GDBTable) extends AutoCloseable with Serializable {
+class FileGDB(index: GDBIndex,
+              table: GDBTable
+             ) extends AutoCloseable with Serializable {
+  /**
+   * @return the table schema.
+   */
   def schema(): StructType = table.schema
 
-  def rows(numRowsToRead: Int = -1, startAtRow: Int = 0): Iterator[Row] = table.rows(index, numRowsToRead, startAtRow)
 
+  /**
+   * @return the number of rows in the table.
+   */
+  def maxRows: Int = index.maxRows
+
+  /**
+   * Get the features as rows.
+   *
+   * @param numRowsToRead the number of rows to read, default = maxRows.
+   * @param startAtRow    the starting row, default = 0.
+   * @return Iterator of rows.
+   */
+  def rows(numRowsToRead: Int = index.maxRows,
+           startAtRow: Int = 0
+          ): Iterator[Row] = table.rows(index, numRowsToRead, startAtRow)
+
+  /**
+   * Close table and index resources.
+   */
   override def close(): Unit = {
     table.close()
     index.close()
@@ -127,7 +149,10 @@ object FileGDB extends Serializable {
     }
   }
 
-  def apply(pathName: String, tableName: String, conf: Configuration = new Configuration()): Option[FileGDB] = {
+  def apply(pathName: String,
+            tableName: String,
+            conf: Configuration = new Configuration()
+           ): Option[FileGDB] = {
     findTable(pathName, tableName, conf) match {
       case Some(catRow) => {
         val internalName = catRow.toTableName

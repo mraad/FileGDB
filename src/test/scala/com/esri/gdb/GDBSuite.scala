@@ -95,6 +95,16 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .save()
   }
 
+  it should "Read PointM/Points" in {
+    sparkSession
+      .sqlContext
+      .gdb(path = "notebooks/pointm.gdb", name = "points")
+      .write
+      .format("noop")
+      .mode(SaveMode.Overwrite)
+      .save()
+  }
+
   override protected def afterAll(): Unit = {
     try {
       sparkSession.stop()
