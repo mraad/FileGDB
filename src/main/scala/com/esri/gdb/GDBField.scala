@@ -23,49 +23,49 @@ trait GDBField extends Serializable {
 }
 
 class FieldFloat32(val field: StructField) extends GDBField {
-  override type T = Float
+  override type T = java.lang.Float
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Float = {
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): java.lang.Float = {
     byteBuffer.getFloat
   }
 
-  def readNull(): Float = null.asInstanceOf[Float]
+  def readNull(): java.lang.Float = null
 
   override def copy(): GDBField = new FieldFloat32(field)
 }
 
 class FieldFloat64(val field: StructField) extends GDBField {
-  override type T = Double
+  override type T = java.lang.Double
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Double = {
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): java.lang.Double = {
     byteBuffer.getDouble
   }
 
-  def readNull(): Double = null.asInstanceOf[Double]
+  def readNull(): java.lang.Double = null
 
   override def copy(): GDBField = new FieldFloat64(field)
 }
 
 class FieldInt16(val field: StructField) extends GDBField {
-  override type T = Short
+  override type T = java.lang.Short
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Short = {
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): java.lang.Short = {
     byteBuffer.getShort
   }
 
-  def readNull(): Short = null.asInstanceOf[Short]
+  def readNull(): java.lang.Short = null
 
   def copy(): GDBField = new FieldInt16(field)
 }
 
 class FieldInt32(val field: StructField) extends GDBField {
-  override type T = Int
+  override type T = java.lang.Integer
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Int = {
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): java.lang.Integer = {
     byteBuffer.getInt
   }
 
-  def readNull(): Int = null.asInstanceOf[Int]
+  def readNull(): java.lang.Integer = null
 
   def copy(): GDBField = new FieldInt32(field)
 }
@@ -75,7 +75,7 @@ class FieldUUID(val field: StructField) extends GDBField {
 
   private val b = new Array[Byte](16)
 
-  def readNull(): String = null.asInstanceOf[String]
+  def readNull(): String = null
 
   override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
     var n = 0
@@ -122,11 +122,11 @@ class FieldTimestamp(val field: StructField) extends GDBField {
 //}
 
 class FieldOID(val field: StructField) extends GDBField {
-  override type T = Int
+  override type T = java.lang.Integer
 
-  def readNull(): Int = null.asInstanceOf[Int]
+  def readNull(): java.lang.Integer = null
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): Int = oid
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): java.lang.Integer = oid
 
   override def copy(): GDBField = new FieldOID(field)
 }
