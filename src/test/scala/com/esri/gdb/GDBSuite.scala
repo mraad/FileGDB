@@ -43,27 +43,27 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
     count shouldBe 4710
   }
 
-  it should "Read SMP and write to parquet and count" in {
-    val format = "parquet"
-    sparkSession
-      .sqlContext
-      .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets", numPartitions = 8)
-      .select("Link_ID")
-      .write
-      .format("parquet")
-      .mode(SaveMode.Overwrite)
-      .save(f"/tmp/tmp.$format")
-    val count = sparkSession.read.format("parquet").load(f"/tmp/tmp.$format").count()
-    println(s"count=$count")
-  }
+//  it should "Read SMP and write to parquet and count" in {
+//    val format = "parquet"
+//    sparkSession
+//      .sqlContext
+//      .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets", numPartitions = 8)
+//      .select("Link_ID")
+//      .write
+//      .format("parquet")
+//      .mode(SaveMode.Overwrite)
+//      .save(f"/tmp/tmp.$format")
+//    val count = sparkSession.read.format("parquet").load(f"/tmp/tmp.$format").count()
+//    println(s"count=$count")
+//  }
 
-  it should "Read SMP and count" in {
-    val count = sparkSession
-      .sqlContext
-      .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets")
-      .count()
-    println(s"count=$count")
-  }
+  //  it should "Read SMP and count" in {
+  //    val count = sparkSession
+  //      .sqlContext
+  //      .gdb("/Users/mraad/data/SMP/SMP_R4_Q3.gdb", "Streets")
+  //      .count()
+  //    println(s"count=$count")
+  //  }
 
   it should "Read Miami.gdb" in {
     sparkSession
@@ -75,15 +75,15 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .save()
   }
 
-  it should "Read SMP_R4_Q3.gdb and write to noop" in {
-    sparkSession
-      .sqlContext
-      .gdb(path = "/Users/mraad/data/SMP/SMP_R4_Q3.gdb", name = "Streets")
-      .write
-      .format("noop")
-      .mode(SaveMode.Overwrite)
-      .save()
-  }
+//  it should "Read SMP_R4_Q3.gdb and write to noop" in {
+//    sparkSession
+//      .sqlContext
+//      .gdb(path = "/Users/mraad/data/SMP/SMP_R4_Q3.gdb", name = "Streets")
+//      .write
+//      .format("noop")
+//      .mode(SaveMode.Overwrite)
+//      .save()
+//  }
 
   it should "Read FileGDBTest/PolygonZ" in {
     sparkSession

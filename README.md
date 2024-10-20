@@ -2,7 +2,8 @@
 
 In the wake of the unpredictable future of User Defined Types (UDT), this is a hasty minimalist re-implementation of the [spark-gdb](https://github.com/mraad/spark-gdb) project, in such that the content of a [File GeoDatabase](https://www.esri.com/news/arcuser/0309/files/9reasons.pdf) can be mapped to a *read-only* [Spark DataFrame](https://spark.apache.org/docs/latest/sql-programming-guide.html).  It is minimalist as it only supports features with simple geometries (for now :-) with no M or Z.
 
-In the previous implementation, a `GeometryType` was defined using the UDT framework. However in this implementation, points are stored in a field with two sub-fields x and y.  ~~Polylines and polygons are stored as a string in the [Esri JSON format](https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm).  It is not the most efficient format, but will make the interoperability with the [ArcGIS API for Python](https://developers.arcgis.com/python/) a bit seamless.~~ Polylines and Polygons shapes are stored as two sub fields, `parts` and `coords`. Parts is an array of integers, where the values are the number of points in the part. Coords is an array of doubles, where the values are a sequence of x,y pairs.
+In the previous implementation, a `GeometryType` was defined using the UDT framework. However, in this implementation, points are stored in a field with two sub-fields x and y. 
+~~Polylines and polygons are stored as a string in the [Esri JSON format](https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm).  It is not the most efficient format, but will make the interoperability with the [ArcGIS API for Python](https://developers.arcgis.com/python/) a bit seamless.~~ Polylines and Polygons shapes are stored as two sub fields, `parts` and `coords`. Parts is an array of integers, where the values are the number of points in the part. Coords is an array of doubles, where the values are a sequence of x,y pairs.
 
 *Notes:*
 
@@ -94,7 +95,7 @@ finally
 - Add option to return geometry envelope only.
 - Add option to return timestamp field as millis long.
 - Read geometry as WKB.
-- Add geometry extent as subfields to `Shape`.
+- ~~Add geometry extent as subfields to `Shape`.~~
 
 ### Notes To Self
 
