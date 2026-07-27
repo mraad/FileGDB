@@ -74,23 +74,34 @@ class FieldUUID(val field: StructField) extends GDBField {
   override type T = String
 
   private val b = new Array[Byte](16)
+  private val sb = new java.lang.StringBuilder(38)
 
   def readNull(): String = null
 
+  private def hex(i: Int): Unit = {
+    val v = b(i) & 0xFF
+    sb.append(FieldUUID.Hex(v >> 4)).append(FieldUUID.Hex(v & 0x0F))
+  }
+
+  // Hand-rolled - String.format re-parses its 16-arg pattern on every single row.
   override def readValue(byteBuffer: ByteBuffer, oid: Int): String = {
-    var n = 0
-    while (n < 16) {
-      b(n) = byteBuffer.get
-      n += 1
-    }
-    "{%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X}".format(
-      b(3), b(2), b(1), b(0),
-      b(5), b(4), b(7), b(6),
-      b(8), b(9), b(10), b(11),
-      b(12), b(13), b(14), b(15))
+    byteBuffer.get(b, 0, 16)
+    sb.setLength(0)
+    sb.append('{')
+    hex(3); hex(2); hex(1); hex(0); sb.append('-')
+    hex(5); hex(4); sb.append('-')
+    hex(7); hex(6); sb.append('-')
+    hex(8); hex(9); sb.append('-')
+    hex(10); hex(11); hex(12); hex(13); hex(14); hex(15)
+    sb.append('}')
+    sb.toString
   }
 
   override def copy(): GDBField = new FieldUUID(field)
+}
+
+object FieldUUID {
+  private val Hex = "0123456789ABCDEF".toCharArray
 }
 
 class FieldTimestamp(val field: StructField) extends GDBField {
@@ -139,11 +150,7 @@ abstract class FieldBytes extends GDBField {
     if (numBytes > m_bytes.length) {
       m_bytes = new Array[Byte](numBytes)
     }
-    var n = 0
-    while (n < numBytes) {
-      m_bytes(n) = byteBuffer.get
-      n += 1
-    }
+    byteBuffer.get(m_bytes, 0, numBytes) // Bulk copy, not a byte at a time.
     numBytes
   }
 
@@ -155,12 +162,17 @@ abstract class FieldBytes extends GDBField {
 }
 
 class FieldBinary(val field: StructField) extends FieldBytes {
-  override type T = ByteBuffer
+  // BinaryType maps to Array[Byte] in Spark, and the value has to outlive the shared m_bytes buffer.
+  override type T = Array[Byte]
 
-  def readNull(): ByteBuffer = null.asInstanceOf[ByteBuffer]
+  def readNull(): Array[Byte] = null
 
-  override def readValue(byteBuffer: ByteBuffer, oid: Int): ByteBuffer = {
-    getByteBuffer(byteBuffer)
+  // Straight into the result: going via fillVarBytes would copy every blob twice and pin the
+  // shared m_bytes at the size of the largest blob in the table for the life of the task.
+  override def readValue(byteBuffer: ByteBuffer, oid: Int): Array[Byte] = {
+    val bytes = new Array[Byte](byteBuffer.getVarUInt().toInt)
+    byteBuffer.get(bytes)
+    bytes
   }
 
   override def copy(): GDBField = new FieldBinary(field)

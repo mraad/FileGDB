@@ -7,8 +7,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.util.TaskCompletionListener
 import org.slf4j.LoggerFactory
 
-import java.nio.{ByteBuffer, ByteOrder}
-import scala.collection.mutable
+import java.nio.{Buffer, ByteBuffer, ByteOrder}
+import scala.collection.concurrent.TrieMap
 
 private[gdb] trait SeekReader extends Serializable {
   def readSeek(byteBuffer: ByteBuffer): Long
@@ -37,7 +37,10 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
     with Logging
     with Serializable {
 
-  private val bytes = new Array[Byte](numBytesPerRow)
+  // Read the index in blocks rather than one 4-6 byte row per readFully call. The block is sized
+  // by a byte budget, not a row count, so a bogus numBytesPerRow cannot blow up the allocation.
+  private val rowsPerBlock = ((GDBIndexIterator.BlockBytes / numBytesPerRow) min maxRows) max 1
+  private val bytes = new Array[Byte](rowsPerBlock * numBytesPerRow)
   private val byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
   private val seekReader = numBytesPerRow match {
     case 5 => new SeekReader5()
@@ -46,14 +49,24 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
   }
   private var objectID = startID
   private var numRows = 0
+  private var rowInBlock = 0
+  private var rowsInBlock = 0
   private var seek = 0L
 
   def hasNext(): Boolean = {
     while (seek == 0L && numRows < maxRows) {
+      if (rowInBlock == rowsInBlock) {
+        rowsInBlock = rowsPerBlock min (maxRows - numRows)
+        rowInBlock = 0
+        dataInput.readFully(bytes, 0, rowsInBlock * numBytesPerRow)
+      }
+      // Position per row: a SeekReader may consume fewer bytes than the on-disk row stride, so
+      // letting the buffer position just run on would desynchronize it from the slot boundaries.
+      // Widened to Buffer - ByteBuffer.position(int) is covariant from Java 9 and breaks on 8.
+      (byteBuffer: Buffer).position(rowInBlock * numBytesPerRow)
+      rowInBlock += 1
       numRows += 1
       objectID += 1
-      byteBuffer.clear()
-      dataInput.readFully(bytes, 0, numBytesPerRow)
       seek = seekReader.readSeek(byteBuffer) // 0 value indicates that the row is deleted.
     }
     seek > 0L
@@ -70,6 +83,10 @@ private[gdb] class GDBIndexIterator(dataInput: FSDataInputStream,
   }
 }
 
+private[gdb] object GDBIndexIterator {
+  val BlockBytes = 32768
+}
+
 class GDBIndex(dataInput: FSDataInputStream,
                header: GDBIndexHeader,
                context: Option[TaskContext]
@@ -79,10 +96,20 @@ class GDBIndex(dataInput: FSDataInputStream,
 
   def maxRows: Int = header.maxRows
 
-  def indices(numRows: Int = header.numRows, startRow: Int = 0): Iterator[GDBIndexRow] = {
-    // logger.debug(s"indices::numRows=$numRows numBytesPerRow=${header.numBytesPerRow} startRow=$startRow")
-    dataInput.seek(16L + startRow * header.numBytesPerRow)
-    val iterator = new GDBIndexIterator(dataInput, startRow, numRows, header.numBytesPerRow)
+  /**
+   * @param numRows the number of index slots to scan, -1 for every slot from startRow on.
+   * @param startRow the slot to start at.
+   *
+   * Both are clamped to what the file actually holds - an over-requested page used to run off the
+   * end of the .gdbtablx and throw EOFException instead of returning the rows that were there.
+   */
+  def indices(numRows: Int = -1, startRow: Int = 0): Iterator[GDBIndexRow] = {
+    val start = startRow max 0 min header.maxRows
+    val available = header.maxRows - start
+    val rows = (if (numRows < 0) available else numRows) min available max 0
+    // logger.debug(s"indices::rows=$rows numBytesPerRow=${header.numBytesPerRow} start=$start")
+    dataInput.seek(16L + start.toLong * header.numBytesPerRow)
+    val iterator = new GDBIndexIterator(dataInput, start, rows, header.numBytesPerRow)
     if (context.isDefined) {
       context.get.addTaskCompletionListener(iterator)
     }
@@ -106,13 +133,15 @@ case class GDBIndexHeader(version: Int, numPages: Int, numRows: Int, numBytesPer
 
 object GDBIndex extends Serializable {
 
-  private val map = mutable.Map.empty[String, GDBIndexHeader]
+  // Concurrent - executors run several tasks against the same JVM.
+  private val map = TrieMap.empty[String, GDBIndexHeader]
 
   def apply(conf: Configuration, path: String, name: String, context: Option[TaskContext] = None): GDBIndex = {
     val logger = LoggerFactory.getLogger(getClass)
-    val filename = StringBuilder.newBuilder.append(path).append("/").append(name).append(".gdbtablx").toString()
+    val filename = s"$path/$name.gdbtablx"
     val hdfsPath = new Path(filename)
-    val dataInput = hdfsPath.getFileSystem(conf).open(hdfsPath)
+    val fileSystem = hdfsPath.getFileSystem(conf)
+    val dataInput = fileSystem.open(hdfsPath)
 
     def readHeader: GDBIndexHeader = {
       logger.debug(s"Cache $filename...")
@@ -123,10 +152,16 @@ object GDBIndex extends Serializable {
       val numPages = byteBuffer.getInt // A page has 1024 rows.
       val numRows = byteBuffer.getInt
       val numBytesPerRow = byteBuffer.getInt
+      // The spec only ever uses 4, 5 or 6. Anything else means this is not a .gdbtablx we can read,
+      // and letting it through would size the block buffer off a garbage number.
+      if (numBytesPerRow < 4 || numBytesPerRow > 8) {
+        throw new RuntimeException(
+          s"'$filename' reports $numBytesPerRow bytes per row, expected 4 to 8. Not a readable index.")
+      }
       GDBIndexHeader(version, numPages, numRows, numBytesPerRow)
     }
 
-    val header = map.getOrElseUpdate(filename, readHeader)
+    val header = cachedHeader(map, cacheKey(fileSystem, hdfsPath), readHeader)
     new GDBIndex(dataInput, header, context)
   }
 

@@ -10,10 +10,23 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <filegdb.version>0.65</filegdb.version>
-        <spark.compact>3.2</spark.compact>
-        <spark.version>${spark.compact}.1</spark.version>
+        <filegdb.version>0.67</filegdb.version>
         <revision>${filegdb.version}-${spark.compact}-${scala.compact}</revision>
+        <!--
+        Default build target. These live here rather than in an activeByDefault profile: Maven
+        deactivates activeByDefault profiles as soon as any other profile auto-activates, which
+        would silently break the build the moment the jdk9+ profile below kicks in. The spark-3.x
+        profiles override them when selected explicitly with -Pspark-3.3 / -Pspark-3.4.
+        -->
+        <java.version>1.8</java.version>
+        <scala.compact>2.12</scala.compact>
+        <scala.version>${scala.compact}.18</scala.version>
+        <scalatest.version>3.2.16</scalatest.version>
+        <spark.compact>3.5</spark.compact>
+        <spark.version>${spark.compact}.3</spark.version>
+        <spark.scope>provided</spark.scope>
+        <!-- Set by the jdk9+ profile; empty on JDK 8, which rejects the add-opens flag syntax. -->
+        <test.argLine/>
     </properties>
 
     <name>${project.artifactId}_${scala.compact}</name>
@@ -106,6 +119,7 @@
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <junitxml>.</junitxml>
                     <filereports>TestSuite.txt</filereports>
+                    <argLine>${test.argLine}</argLine>
                 </configuration>
                 <executions>
                     <execution>
@@ -223,19 +237,28 @@
                 <spark.scope>provided</spark.scope>
             </properties>
         </profile>
+        <!-- spark-3.5 is the default; its properties live in the top-level <properties> block. -->
         <profile>
-            <id>spark-3.5</id>
+            <!-- Spark reaches into JDK internals - without these the test JVM dies at startup. -->
+            <id>jdk9+</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <jdk>[9,)</jdk>
             </activation>
             <properties>
-                <java.version>1.8</java.version>
-                <scala.compact>2.12</scala.compact>
-                <scala.version>${scala.compact}.18</scala.version>
-                <scalatest.version>3.2.16</scalatest.version>
-                <spark.compact>3.5</spark.compact>
-                <spark.version>${spark.compact}.3</spark.version>
-                <spark.scope>provided</spark.scope>
+                <test.argLine>
+                    --add-opens=java.base/java.lang=ALL-UNNAMED
+                    --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                    --add-opens=java.base/java.io=ALL-UNNAMED
+                    --add-opens=java.base/java.net=ALL-UNNAMED
+                    --add-opens=java.base/java.nio=ALL-UNNAMED
+                    --add-opens=java.base/java.util=ALL-UNNAMED
+                    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                    --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                    --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+                    --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+                    --add-opens=java.base/sun.security.action=ALL-UNNAMED
+                    --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+                </test.argLine>
             </properties>
         </profile>
         <!--profile>

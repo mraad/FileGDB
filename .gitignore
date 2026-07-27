@@ -19,3 +19,5 @@ jn.sh
 *.iml
 *.sh
 **/*.lock
+!uv.lock
+.venv

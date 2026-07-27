@@ -9,18 +9,20 @@ import org.apache.spark.util.TaskCompletionListener
 import org.slf4j.LoggerFactory
 
 import java.nio.ByteBuffer
-import scala.collection.mutable
+import scala.collection.concurrent.TrieMap
 
 case class GDBTableHeader(numFeatures: Int, largestSize: Int, fields: Array[GDBField])
 
 object GDBTable extends Serializable {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val map = mutable.Map.empty[String, GDBTableHeader]
+  // Concurrent - executors run several tasks against the same JVM.
+  private val map = TrieMap.empty[String, GDBTableHeader]
 
   def apply(conf: Configuration, path: String, name: String, context: Option[TaskContext] = None): GDBTable = {
-    val filename = StringBuilder.newBuilder.append(path).append("/").append(name).append(".gdbtable").toString()
+    val filename = s"$path/$name.gdbtable"
     val hdfsPath = new Path(filename)
-    val dataInput = hdfsPath.getFileSystem(conf).open(hdfsPath)
+    val fileSystem = hdfsPath.getFileSystem(conf)
+    val dataInput = fileSystem.open(hdfsPath)
     val dataBuffer = DataBuffer(dataInput)
 
     def readTableHeader: GDBTableHeader = {
@@ -69,7 +71,7 @@ object GDBTable extends Serializable {
       }
     }
 
-    val tableHeader = map.getOrElseUpdate(filename, readTableHeader)
+    val tableHeader = cachedHeader(map, cacheKey(fileSystem, hdfsPath), readTableHeader)
     new GDBTable(dataBuffer, tableHeader, context)
   }
 
@@ -380,7 +382,15 @@ class GDBTable(dataBuffer: DataBuffer,
 
   val schema: StructType = StructType(header.fields.map(_.field))
 
-  def rows(index: GDBIndex, numRows: Int = header.numFeatures, startAtRow: Int = 0): Iterator[Row] = {
+  /**
+   * @param numRows the number of index *slots* to scan, -1 for every slot from startAtRow on.
+   *                Deleted rows still occupy slots, so header.numFeatures (a live-row count) would
+   *                truncate an uncompacted table. GDBIndex.indices clamps both arguments.
+   */
+  def rows(index: GDBIndex, numRows: Int = -1, startAtRow: Int = 0): Iterator[Row] = {
+    // An unreadable header (compressed table, wrong signature) yields no fields. Scanning the index
+    // anyway would decode garbage record lengths out of a file we already know we cannot parse.
+    if (header.fields.isEmpty) return Iterator.empty
     val fieldsCopy = header.fields.map(_.copy())
     val iterator = new GDBTableIterator(index.indices(numRows, startAtRow), dataBuffer, fieldsCopy)
     if (context.isDefined) {

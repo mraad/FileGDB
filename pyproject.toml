@@ -1,0 +1,9 @@
+[project]
+name = "filegdb"
+version = "0.67"
+description = "PySpark harness for the com.esri filegdb Spark data source."
+requires-python = ">=3.10"
+dependencies = ["pyspark==3.5.3"]
+
+[tool.uv]
+package = false
