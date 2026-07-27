@@ -29,27 +29,30 @@ class GDBTableIterator(indexIter: Iterator[GDBIndexRow],
       nullValueMasks(n) = byteBuffer.get
       n += 1
     }
-    var bit = 0
-    val values: Array[Any] = try {
-      fields.map(field => {
-        if (field.nullable) {
-          val i = bit >> 3
-          val m = 1 << (bit & 7)
+    // Filled in place - a closure over a `var bit` would box the counter on every row.
+    val values = new Array[Any](fields.length)
+    try {
+      var bit = 0
+      var f = 0
+      while (f < fields.length) {
+        val field = fields(f)
+        values(f) = if (field.nullable) {
+          val isNull = (nullValueMasks(bit >> 3) & (1 << (bit & 7))) != 0
           bit += 1
-          if ((nullValueMasks(i) & m) == 0) {
-            field.readValue(byteBuffer, index.oid)
-          }
-          else {
-            field.readNull()
-          }
+          if (isNull) field.readNull() else field.readValue(byteBuffer, index.oid)
         } else {
           field.readValue(byteBuffer, index.oid)
         }
-      })
+        f += 1
+      }
     } catch {
       case t: Throwable =>
         logger.error(s"OBJECTID=${index.oid}, numBytes=$numBytes", t)
-        fields.map(_.readNull())
+        var f = 0
+        while (f < fields.length) {
+          values(f) = fields(f).readNull()
+          f += 1
+        }
     }
     // new GenericRowWithSchema(values, schema)
     // rows += 1

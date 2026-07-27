@@ -1,12 +1,33 @@
 package com.esri
 
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
 import org.apache.spark.util.SerializableConfiguration
 
 import java.nio.ByteBuffer
+import scala.collection.concurrent.TrieMap
 
 package object gdb {
+
+  /**
+   * Header cache key: path plus length and modification time. Keying on the path alone meant a
+   * .gdb regenerated at the same path kept decoding new records with the old field offsets for
+   * the life of the JVM, with no way to invalidate short of a restart.
+   */
+  private[gdb] def cacheKey(fileSystem: FileSystem, path: Path): String = {
+    val status = fileSystem.getFileStatus(path)
+    s"${path.toUri}:${status.getLen}:${status.getModificationTime}"
+  }
+
+  // ponytail: flat cap, not an LRU. Entries are tiny and only accumulate when a file is rewritten
+  // in a long-lived JVM; swap in a real eviction policy if that ever turns out to matter.
+  private[gdb] val MaxCachedHeaders = 256
+
+  private[gdb] def cachedHeader[T](map: TrieMap[String, T], key: String, read: => T): T = {
+    if (map.size > MaxCachedHeaders) map.clear()
+    map.getOrElseUpdate(key, read)
+  }
 
   implicit class SparkContextImplicits(val sc: SparkContext) extends AnyVal {
     def gdb(path: String,

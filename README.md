@@ -14,6 +14,34 @@ In the previous implementation, a `GeometryType` was defined using the UDT frame
 
 ### Changes
 
+- Version 0.67:
+  - `GDBIndex.indices` now clamps `startRow` and `numRows` to what the `.gdbtablx` actually holds.
+    An over-requested page previously ran off the end of the file and threw `EOFException` instead
+    of returning the rows that were there - `FileGDB#rows(numRowsToRead, startAtRow)` is a paging
+    API with no clamping of its own. This bug predates 0.66.
+  - `GDBTable.rows` returns an empty iterator when the header could not be parsed, rather than
+    scanning index slots of a file it already knows it cannot read.
+  - The index block buffer is positioned per row and sized by a byte budget, so a `numBytesPerRow`
+    outside 4..6 can no longer desynchronize the reader, and a garbage value can no longer be
+    amplified into an oversized allocation. Values outside 4..8 are now rejected outright.
+  - Header caches are keyed on path + length + modification time and capped, so regenerating a
+    `.gdb` at the same path no longer decodes new records with stale field offsets for the life
+    of the JVM.
+  - `FieldBinary` copies each blob once instead of twice.
+  - `--add-opens` moved into a `jdk9+` profile. The default build properties moved out of the
+    `activeByDefault` spark-3.5 profile to the top-level `<properties>` block, because Maven
+    deactivates `activeByDefault` profiles as soon as any other profile auto-activates.
+- Version 0.66:
+  - `FileGDB.rows(path, name, conf)` used to stop after `numFeatures` **index slots** rather than
+    scanning them all. On an edited (uncompacted) table, deleted rows occupy slots, so the call
+    silently returned only a fraction of the features. The Spark data source was never affected.
+  - `FieldBinary` returned a `ByteBuffer` view over a reused buffer for a `BinaryType` column -
+    now an `Array[Byte]` copy, which is what Spark actually expects. **Breaking** for code reading
+    a `BinaryType` column through the non-Spark `FileGDB.rows` / `FileGDB.apply` APIs, which hand
+    back the decoded value untouched: cast to `Array[Byte]`, not `ByteBuffer`.
+  - The `.gdbtable` / `.gdbtablx` header caches are now concurrent; several tasks share one executor JVM.
+  - `.gdbtablx` is read in 4096-row blocks, `getInt`/`getLong` in one call, and field bytes are bulk
+    copied. Roughly 1.4x on attribute-heavy tables, 1.1x when geometry decoding dominates.
 - Sep 10, 2021, Version 0.41 is a breaking change in the `FileGDB` object.
 
 ## Building the project using [Maven](https://maven.apache.org/):
@@ -26,19 +54,16 @@ mvn clean install
 
 The best demonstration of the usage of this implementation is with [PySpark DataFrames](https://docs.databricks.com/spark/latest/dataframes-datasets/introduction-to-dataframes-python.html) and in conjunction with the [ArcGIS API for Python](https://developers.arcgis.com/python/).
 
-Create a Python 3 [conda](https://conda.io/docs/) environment:
-
-```python
-conda remove --yes --all --name py36
-conda create --yes -n py36 -c conda-forge python=3.6 openjdk=8 findspark py4j
-```
+Create the local Python environment with [uv](https://docs.astral.sh/uv/) and smoke test the freshly
+built jar against a real File GeoDatabase:
 
 ```bash
-conda create --name arcgis python=3.6
-conda activate arcgis
-conda install -c esri arcgis
-conda install matplotlib
+uv sync
+uv run smoke_test.py /path/to/some.gdb
 ```
+
+`smoke_test.py` lists the feature classes, prints each schema, counts the rows, and checks that the
+decoded geometry falls inside the extent declared in the field metadata.
 
 Assuming that the environment variable `SPARK_HOME` points to the location of a Spark installation, start a Jupyter notebook that is backed by PySpark:
 
