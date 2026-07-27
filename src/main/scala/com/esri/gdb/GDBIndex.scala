@@ -152,11 +152,12 @@ object GDBIndex extends Serializable {
       val numPages = byteBuffer.getInt // A page has 1024 rows.
       val numRows = byteBuffer.getInt
       val numBytesPerRow = byteBuffer.getInt
-      // The spec only ever uses 4, 5 or 6. Anything else means this is not a .gdbtablx we can read,
-      // and letting it through would size the block buffer off a garbage number.
-      if (numBytesPerRow < 4 || numBytesPerRow > 8) {
+      // Only 4, 5 and 6 have a SeekReader; anything else would fall through to SeekReader4 and
+      // decode offsets from the wrong bytes. A hard error beats silently wrong geometry. (7 and 8
+      // byte rows show up in the V4 / 64-bit OBJECTID format, which this reader does not support.)
+      if (numBytesPerRow < 4 || numBytesPerRow > 6) {
         throw new RuntimeException(
-          s"'$filename' reports $numBytesPerRow bytes per row, expected 4 to 8. Not a readable index.")
+          s"'$filename' reports $numBytesPerRow bytes per row, expected 4 to 6. Not a readable index.")
       }
       GDBIndexHeader(version, numPages, numRows, numBytesPerRow)
     }
