@@ -87,9 +87,11 @@ uv sync
 uv run smoke_test.py /path/to/some.gdb
 ```
 
-`smoke_test.py` lists the feature classes, prints each schema, counts the rows, forces a full
-geometry decode and checks it falls inside the extent declared in the field metadata on both axes,
-and flags rows that failed to decode by looking for NULLs in non-nullable columns. With no
+`smoke_test.py` lists the feature classes, prints each schema, counts the rows, and flags rows that
+failed to decode by looking for NULLs in non-nullable columns. For a supported geometry type in a
+non-empty table it also forces a full geometry decode and checks the result falls inside the extent
+declared in the field metadata, on both axes. Empty tables and geometry types this reader does not
+support are reported and left unvalidated; compressed tables are reported as skipped. With no
 argument it runs against the `data/Miami.gdb` fixture in this repository.
 
 Assuming that the environment variable `SPARK_HOME` points to the location of a Spark installation, start a Jupyter notebook that is backed by PySpark:
@@ -107,9 +109,11 @@ pyspark\
  --jars target/filegdb-0.67-3.5-2.12.jar
 ```
 
-The jar name encodes `${filegdb.version}-${spark.compact}-${scala.compact}`, so it tracks whichever
-profile you built. This POM has no `distributionManagement`, so `mvn install` publishes to your
-local repository only - there is no Central coordinate to pass to `--packages`.
+That `--jars` path is the default build (Spark 3.5, Scala 2.12). The jar name encodes
+`${filegdb.version}-${spark.compact}-${scala.compact}`, so substitute the matching filename if you
+built another profile - `-Pspark-3.4` produces `filegdb-0.67-3.4-2.12.jar`. This POM has no
+`distributionManagement`, so `mvn install` publishes to your local repository only - there is no
+Central coordinate to pass to `--packages`.
 
 Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) example notebooks.
 
