@@ -14,34 +14,59 @@ In the previous implementation, a `GeometryType` was defined using the UDT frame
 
 ### Changes
 
-- Version 0.67:
+This project versions as a single running counter - 0.63, 0.64, 0.65, 0.67 - with no separate
+major / minor / patch component. Breaking changes therefore land on an ordinary increment and are
+called out explicitly below, as 0.41 was.
+
+- **Version 0.67** (supersedes 0.66, which was never released).
+
+  **Breaking:** `FieldBinary.readValue` returns `Array[Byte]` where it used to return a
+  `ByteBuffer`. Reading a *non-null* `BinaryType` column through the Spark data source previously
+  failed outright - the `ByteBuffer` survives `CatalystTypeConverters` but dies at
+  `UnsafeProjection` with
+  `ClassCastException: class java.nio.HeapByteBuffer cannot be cast to class [B` - so no working
+  Spark code can depend on the old type. That `ByteBuffer` was also a view over a buffer reused
+  between rows, so its contents changed underneath the caller. Code using the non-Spark
+  `FileGDB.rows` / `FileGDB.apply` APIs on a binary column must cast to `Array[Byte]`.
+
+  Correctness:
+  - `FileGDB.rows(path, name, conf)` used to stop after `numFeatures` **index slots** rather than
+    scanning them all. `numFeatures` counts live rows, but deleted rows still occupy slots, so on
+    an edited (uncompacted) table the call silently returned a fraction of the features -
+    `Miami.gdb` `Broadcast` returned 162,970 of 1,365,578. The Spark data source was never
+    affected; `GDBRDD` always passes an explicit slot count.
   - `GDBIndex.indices` now clamps `startRow` and `numRows` to what the `.gdbtablx` actually holds.
     An over-requested page previously ran off the end of the file and threw `EOFException` instead
-    of returning the rows that were there - `FileGDB#rows(numRowsToRead, startAtRow)` is a paging
+    of returning the rows that were there. `FileGDB#rows(numRowsToRead, startAtRow)` is a paging
     API with no clamping of its own. This bug predates 0.66.
   - `GDBTable.rows` returns an empty iterator when the header could not be parsed, rather than
     scanning index slots of a file it already knows it cannot read.
+  - Header caches were plain `mutable.Map` mutated by concurrent tasks sharing an executor JVM,
+    racing in `getOrElseUpdate`. Now `TrieMap`, keyed on path + length + modification time so
+    regenerating a `.gdb` at the same path no longer decodes new records at stale field offsets,
+    and capped so entries cannot accumulate without bound.
   - The index block buffer is positioned per row and sized by a byte budget, so a `numBytesPerRow`
-    outside 4..6 can no longer desynchronize the reader, and a garbage value can no longer be
-    amplified into an oversized allocation. Values outside 4..8 are now rejected outright.
-  - Header caches are keyed on path + length + modification time and capped, so regenerating a
-    `.gdb` at the same path no longer decodes new records with stale field offsets for the life
-    of the JVM.
+    outside 4..6 can no longer desynchronize the reader and a garbage value can no longer be
+    amplified into an oversized allocation. Values outside 4..6 are rejected outright; 7 and 8 byte
+    rows belong to the V4 / 64-bit OBJECTID format, which this reader does not support.
+  - `startRow * numBytesPerRow` was `Int` arithmetic, overflowing past ~536M rows.
+
+  Performance - roughly 1.4x on attribute-heavy tables, 1.1x where geometry decoding dominates:
+  - `getInt`/`getLong` do one `readInt`/`readLong` plus `reverseBytes` rather than 4/8 `readByte`
+    calls through the `FSDataInputStream` stack.
+  - `.gdbtablx` is read in blocks instead of one `readFully` per 4-6 byte row.
+  - `FieldBytes.fillVarBytes` bulk copies; this hits every string and every geometry.
+  - `GDBTableIterator.next` fills a preallocated array in a `while` loop; the old `fields.map`
+    closed over a `var`, boxing the bit counter on every row.
+  - `FieldUUID` builds its hex by hand; `String.format` re-parsed a 16-arg pattern per row.
   - `FieldBinary` copies each blob once instead of twice.
-  - `--add-opens` moved into a `jdk9+` profile. The default build properties moved out of the
-    `activeByDefault` spark-3.5 profile to the top-level `<properties>` block, because Maven
-    deactivates `activeByDefault` profiles as soon as any other profile auto-activates.
-- Version 0.66:
-  - `FileGDB.rows(path, name, conf)` used to stop after `numFeatures` **index slots** rather than
-    scanning them all. On an edited (uncompacted) table, deleted rows occupy slots, so the call
-    silently returned only a fraction of the features. The Spark data source was never affected.
-  - `FieldBinary` returned a `ByteBuffer` view over a reused buffer for a `BinaryType` column -
-    now an `Array[Byte]` copy, which is what Spark actually expects. **Breaking** for code reading
-    a `BinaryType` column through the non-Spark `FileGDB.rows` / `FileGDB.apply` APIs, which hand
-    back the decoded value untouched: cast to `Array[Byte]`, not `ByteBuffer`.
-  - The `.gdbtable` / `.gdbtablx` header caches are now concurrent; several tasks share one executor JVM.
-  - `.gdbtablx` is read in 4096-row blocks, `getInt`/`getLong` in one call, and field bytes are bulk
-    copied. Roughly 1.4x on attribute-heavy tables, 1.1x when geometry decoding dominates.
+
+  Build:
+  - The scalatest JVM died at startup on JDK 17 with an `IllegalAccessError` on
+    `sun.nio.ch.DirectBuffer`, so no test had been running. The `--add-opens` flags now come from a
+    `jdk9+` profile, which required moving the default build properties out of the
+    `activeByDefault` spark-3.5 profile: Maven deactivates `activeByDefault` profiles as soon as
+    any other profile auto-activates.
 - Sep 10, 2021, Version 0.41 is a breaking change in the `FileGDB` object.
 
 ## Building the project using [Maven](https://maven.apache.org/):
@@ -62,8 +87,10 @@ uv sync
 uv run smoke_test.py /path/to/some.gdb
 ```
 
-`smoke_test.py` lists the feature classes, prints each schema, counts the rows, and checks that the
-decoded geometry falls inside the extent declared in the field metadata.
+`smoke_test.py` lists the feature classes, prints each schema, counts the rows, forces a full
+geometry decode and checks it falls inside the extent declared in the field metadata on both axes,
+and flags rows that failed to decode by looking for NULLs in non-nullable columns. With no
+argument it runs against the `data/Miami.gdb` fixture in this repository.
 
 Assuming that the environment variable `SPARK_HOME` points to the location of a Spark installation, start a Jupyter notebook that is backed by PySpark:
 
@@ -72,16 +99,17 @@ export PATH=${SPARK_HOME}/bin:${PATH}
 export SPARK_LOCAL_IP=$(hostname)
 export PYSPARK_DRIVER_PYTHON=jupyter
 export PYSPARK_DRIVER_PYTHON_OPTS='notebook'
-export GDB_MIN=2.11 # Spark 2.3
-# export GDB_MIN=2.12 # Spark 2.4
-export GDB_VER=0.18
 pyspark\
  --master local[*]\
  --num-executors 1\
  --driver-memory 16G\
  --executor-memory 16G\
- --packages com.esri:webmercator_${GDB_MIN}:1.4,com.esri:filegdb_${GDB_MIN}:${GDB_VER}
+ --jars target/filegdb-0.67-3.5-2.12.jar
 ```
+
+The jar name encodes `${filegdb.version}-${spark.compact}-${scala.compact}`, so it tracks whichever
+profile you built. This POM has no `distributionManagement`, so `mvn install` publishes to your
+local repository only - there is no Central coordinate to pass to `--packages`.
 
 Check out the [Broadcast](Broadcast.ipynb) and [Countries](Countries.ipynb) example notebooks.
 
