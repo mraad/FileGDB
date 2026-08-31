@@ -120,6 +120,18 @@
                     <junitxml>.</junitxml>
                     <filereports>TestSuite.txt</filereports>
                     <argLine>${test.argLine}</argLine>
+                    <!--
+                    Bind the driver to loopback. Spark 4.0 gives each session an artifact
+                    class loader and fetches unknown classes over RPC from the driver's own
+                    address; Janino probes <generated package>.Object on every codegen
+                    compile, so a host that refuses the self-connection on its LAN address
+                    (the macOS firewall does) turns each probe into a RemoteClassLoaderError
+                    and kills the task. Spark 3.x never used that loader, so it did not care.
+                    -->
+                    <systemProperties>
+                        <spark.driver.bindAddress>127.0.0.1</spark.driver.bindAddress>
+                        <spark.driver.host>127.0.0.1</spark.driver.host>
+                    </systemProperties>
                 </configuration>
                 <executions>
                     <execution>
@@ -233,6 +245,21 @@
                 <scala.version>${scala.compact}.17</scala.version>
                 <scalatest.version>3.2.16</scalatest.version>
                 <spark.compact>3.4</spark.compact>
+                <spark.version>${spark.compact}.0</spark.version>
+                <spark.scope>provided</spark.scope>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-4.0</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <java.version>17</java.version>
+                <scala.compact>2.13</scala.compact>
+                <scala.version>${scala.compact}.16</scala.version>
+                <scalatest.version>3.2.19</scalatest.version>
+                <spark.compact>4.0</spark.compact>
                 <spark.version>${spark.compact}.0</spark.version>
                 <spark.scope>provided</spark.scope>
             </properties>
