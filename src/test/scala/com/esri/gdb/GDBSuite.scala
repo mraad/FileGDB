@@ -2,7 +2,8 @@ package com.esri.gdb
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.functions.{col, count, hash, lit, sum}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers._
@@ -73,6 +74,21 @@ class GDBSuite extends AnyFlatSpec with BeforeAndAfterAll {
       .format("noop")
       .mode(SaveMode.Overwrite)
       .save()
+  }
+
+  it should "read the same rows from Miami.gdb Broadcast with sortByOffset" in {
+    // Broadcast is an edited table whose rows sit in near-random file order, so sorting by offset
+    // really reorders every partition - a row count plus an order-free hash of every column catches
+    // a dropped, duplicated or misdecoded row.
+    def digest(sortByOffset: Boolean): (Long, Long) = {
+      val df: DataFrame = sparkSession.read.gdb("data/Miami.gdb", "Broadcast", sortByOffset = sortByOffset)
+      val row = df.select(count(lit(1)), sum(hash(df.columns.map(c => col(s"`$c`")): _*).cast("long"))).first()
+      (row.getLong(0), row.getLong(1))
+    }
+
+    val sorted = digest(sortByOffset = true)
+    sorted._1 shouldBe 1365578L
+    sorted shouldBe digest(sortByOffset = false)
   }
 
 //  it should "Read SMP_R4_Q3.gdb and write to noop" in {

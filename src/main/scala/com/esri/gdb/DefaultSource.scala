@@ -15,7 +15,8 @@ class DefaultSource extends RelationProvider with DataSourceRegister {
       case _ => "8"
     }
     val numPartitions = parameters.getOrElse(GDBOptions.NUM_PARTITIONS, numPartitionsDefault).toInt
-    GDBRelation(path, name, numPartitions)(sqlContext)
+    val sortByOffset = parameters.getOrElse(GDBOptions.SORT_BY_OFFSET, "false").toBoolean
+    GDBRelation(path, name, numPartitions, sortByOffset)(sqlContext)
   }
 
 }

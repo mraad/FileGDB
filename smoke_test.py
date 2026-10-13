@@ -1,14 +1,18 @@
 """Smoke test the com.esri filegdb Spark data source against a real File GeoDatabase.
 
-Usage: uv run smoke_test.py [/path/to/some.gdb]
+Usage: uv run smoke_test.py [/path/to/some.gdb | s3a://bucket/some.gdb]
+
+Another Spark line: uv run --with pyspark==4.2.0 smoke_test.py ...
+For s3a://, set AWS_ENDPOINT_URL (e.g. http://localhost:9878 for ozone/docker-compose.yaml),
+AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
 """
 
 import glob
 import os
-import struct
 import sys
 import time
 
+import pyspark
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType
@@ -16,15 +20,23 @@ from pyspark.sql.types import StructType
 HERE = os.path.dirname(os.path.abspath(__file__))
 # A fixture shipped with the repo, so the no-argument form works for anyone who cloned it.
 DEFAULT_GDB = os.path.join(HERE, "data", "Miami.gdb")
+# The installed pyspark package doubles as a SPARK_HOME: it ships jars/ and bin/.
+PYSPARK_HOME = pyspark.__path__[0]
 
 
 def find_jar() -> str:
-    jars = glob.glob(os.path.join(HERE, "target", "filegdb-*.jar"))
+    # The jar is named filegdb-<version>-<spark major.minor>-<scala>.jar, and it only loads into the
+    # Spark line it was built against.
+    spark_compact = ".".join(pyspark.__version__.split(".")[:2])
+    jars = glob.glob(os.path.join(HERE, "target", f"filegdb-*-{spark_compact}-*.jar"))
     jars = [j for j in jars if "sources" not in j and "javadoc" not in j]
     if not jars:
-        sys.exit("No filegdb jar in target/ - run 'mvn clean install -DskipTests' first.")
-    # Newest, not lexicographically last: target/ accumulates jars across spark profiles and
-    # version bumps, and picking the wrong one silently validates code that was not just built.
+        profile = "" if spark_compact == "3.5" else f" -Pspark-{spark_compact}"
+        sys.exit(
+            f"No Spark {spark_compact} filegdb jar in target/ - run 'mvn clean install -DskipTests{profile}' first."
+        )
+    # Newest, not lexicographically last: target/ accumulates jars across version bumps, and
+    # picking the wrong one silently validates code that was not just built.
     return max(jars, key=os.path.getmtime)
 
 
@@ -37,36 +49,83 @@ def gdb_module(spark: SparkSession):
     return getattr(getattr(spark.sparkContext._jvm.com.esri.gdb, "FileGDB$"), "MODULE$")
 
 
+def hadoop_path(spark: SparkSession, path: str):
+    """A Hadoop Path and its FileSystem, so local and s3a:// paths are checked the same way."""
+    jvm = spark.sparkContext._jvm
+    hpath = jvm.org.apache.hadoop.fs.Path(path)
+    return hpath, hpath.getFileSystem(spark.sparkContext._jsc.hadoopConfiguration())
+
+
+def s3a_packages() -> str:
+    """hadoop-aws matching the Hadoop that pyspark ships, which pulls in its AWS SDK."""
+    jars = glob.glob(os.path.join(PYSPARK_HOME, "jars", "hadoop-client-api-*.jar"))
+    if not jars:
+        sys.exit("Cannot find hadoop-client-api in the pyspark install to match hadoop-aws against.")
+    version = os.path.basename(jars[0])[len("hadoop-client-api-"):-len(".jar")]
+    return f"org.apache.hadoop:hadoop-aws:{version}"
+
+
 def is_compressed(spark: SparkSession, gdb: str, name: str) -> bool:
     """A .gdbtable signature other than 3 means a compressed table, which this reader
     does not support - so an empty schema there is a documented limit, not a failure."""
     opt = gdb_module(spark).findTable(gdb, name, spark.sparkContext._jsc.hadoopConfiguration())
     if not opt.isDefined():
         return False
-    path = os.path.join(gdb, opt.get().toTableName() + ".gdbtable")
-    if not os.path.exists(path):
+    path, fs = hadoop_path(spark, f"{gdb}/{opt.get().toTableName()}.gdbtable")
+    if not fs.exists(path):
         return False
-    with open(path, "rb") as fp:
-        return struct.unpack("<i", fp.read(4))[0] != 3
+    stream = fs.open(path)
+    try:
+        # Little-endian, as DataBuffer.getInt reads it.
+        return spark.sparkContext._jvm.java.lang.Integer.reverseBytes(stream.readInt()) != 3
+    finally:
+        stream.close()
 
 
-def main() -> None:
-    gdb = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_GDB
-    if not os.path.isdir(gdb):
-        sys.exit(f"Not a directory: {gdb}")
+def session(app: str, s3a: bool) -> SparkSession:
+    """A local SparkSession on the imported pyspark with the matching filegdb jar, plus S3A if asked."""
+    # An inherited SPARK_HOME launches that install's JVM under this pyspark, so the run would
+    # validate a Spark other than the one printed (or fail outright on a major-version mismatch).
+    os.environ["SPARK_HOME"] = PYSPARK_HOME
     jar = find_jar()
-    print(f"jar={os.path.basename(jar)}\ngdb={gdb}\n")
-
-    spark = (
-        SparkSession.builder.appName("filegdb-smoke")
+    print(f"pyspark={pyspark.__version__}\njar={os.path.basename(jar)}")
+    builder = (
+        SparkSession.builder.appName(app)
         .master("local[*]")
         .config("spark.jars", jar)
         .config("spark.driver.memory", "4g")
         .config("spark.sql.session.timeZone", "UTC")
         .config("spark.ui.enabled", "false")
-        .getOrCreate()
+        .config("spark.ui.showConsoleProgress", "false")
+        # The driver fetches spark.jars from its own RPC server; on its LAN address a host firewall
+        # can reset that self-connection and kill SparkContext startup. local[*] needs loopback only.
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.driver.host", "127.0.0.1")
     )
+    if s3a:
+        # Credentials come from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY via the default S3A chain.
+        builder = builder.config("spark.jars.packages", s3a_packages())
+        endpoint = os.environ.get("AWS_ENDPOINT_URL")
+        if endpoint:
+            builder = (
+                builder.config("spark.hadoop.fs.s3a.endpoint", endpoint)
+                .config("spark.hadoop.fs.s3a.endpoint.region", os.environ.get("AWS_REGION", "us-east-1"))
+                .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            )
+    spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
+    return spark
+
+
+def main() -> None:
+    gdb = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_GDB).rstrip("/")
+    spark = session("filegdb-smoke", gdb.startswith("s3a://"))
+    print(f"gdb={gdb}\n")
+
+    path, fs = hadoop_path(spark, gdb)
+    if not fs.exists(path) or not fs.getFileStatus(path).isDirectory():
+        spark.stop()
+        sys.exit(f"Not a directory: {gdb}")
 
     failures, skipped = [], []
     try:
