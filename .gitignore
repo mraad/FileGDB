@@ -23,3 +23,7 @@ jn.sh
 .venv
 __pycache__
 .DS_Store
+# Extracted from data/*.gdb.tar.xz
+data/Miami.gdb/
+data/Miami2.gdb/
+data/World.gdb/

@@ -10,6 +10,7 @@ AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
 import glob
 import os
 import sys
+import tarfile
 import time
 
 import pyspark
@@ -119,6 +120,10 @@ def session(app: str, s3a: bool) -> SparkSession:
 
 def main() -> None:
     gdb = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_GDB).rstrip("/")
+    if gdb == DEFAULT_GDB and not os.path.isdir(gdb):
+        # The fixture ships as data/Miami.gdb.tar.xz.
+        with tarfile.open(gdb + ".tar.xz") as tar:
+            tar.extractall(os.path.dirname(gdb), filter="data")
     spark = session("filegdb-smoke", gdb.startswith("s3a://"))
     print(f"gdb={gdb}\n")
 
