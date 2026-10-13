@@ -272,8 +272,9 @@ runs. A run that passed 300 s was cancelled and is shown as "> 300".
 - **Why Spark 3.5 to 4.1 stall on S3:** their S3A client (Hadoop 3.3.4 to 3.4.2) reopens the HTTP
   stream for every seek outside its current 64 KB read-ahead window. An unsorted scan of a
   scattered table therefore sends about one ranged GET per row. Sorting brought `Broadcast` down to
-  989 stream opens. The Hadoop 3.5.0 S3A client in Spark 4.2 handles the same access pattern
-  with a few dozen stream opens, so on 4.2 the option changes little over S3.
+  989 stream opens. Spark 4.2's Hadoop 3.5.0 uses the S3A "analytics" input stream. It reads each
+  file whole, in a few large GET requests, and serves seeks from memory, so on 4.2 row order hardly
+  matters over S3. See [Compacting a table](#compacting-a-table) for the I/O counters.
 
 Setup: Apple M4 Max with 16 cores and 128 GB, macOS 26, Spark `local[*]` with 8 partitions per
 table. Ozone 2.2.1 ran from `ozone/docker-compose.yaml` in a Colima VM (8 CPUs, 16 GB) on the same
@@ -287,6 +288,99 @@ To reproduce, build the matching profile first, then run:
 export AWS_ACCESS_KEY_ID=ozone AWS_SECRET_ACCESS_KEY=ozone AWS_ENDPOINT_URL=http://localhost:9878
 uv run --with pyspark==4.2.0 bench.py data/Miami.gdb s3a://filegdb/Miami.gdb   # BENCH_CAP=300 by default
 ```
+
+### Compacting a table
+
+Copying an edited table into a new one, for example with ArcGIS "Copy Features", rewrites it
+compactly:
+- OBJECTIDs are renumbered 1..n.
+- The rows are written in that order, so OBJECTID order becomes file order.
+- The `.gdbtablx` has one slot per live row, with no empty slots.
+
+GDAL can do the same:
+
+```bash
+# -unsetFid renumbers OBJECTIDs. Without it the copy keeps the old sparse IDs and its empty slots.
+ogr2ogr -f OpenFileGDB -unsetFid Miami2.gdb data/Miami.gdb Broadcast -nln Broadcast2
+```
+
+For `Broadcast`, compared with its copy `Broadcast2`:
+
+| | `Broadcast` (edited) | `Broadcast2` (copy) |
+|---|---:|---:|
+| Live rows | 1,365,578 | 1,365,578 |
+| `.gdbtablx` slots | 11,845,541 | 1,365,578 |
+| `.gdbtable` / `.gdbtablx` size | 85.5 MB / 59.2 MB | 85.5 MB / 6.8 MB |
+| Consecutive rows that jump backward / > 64 KB forward | 49.9% / 49.7% | 0% / 0% |
+
+Both decode to the same data: the same row count, and the same hash over every column except the
+renumbered OBJECTID.
+
+The table below shows full scans of each table on its own, in seconds, as the best of two runs. A
+run that passed 60 s was cancelled; the same case took more than 300 s in the benchmark above.
+
+| Table | Source | Row order | Spark 3.5.9 | Spark 4.0.4 | Spark 4.1.3 | Spark 4.2.0 |
+|---|---|---|---:|---:|---:|---:|
+| `Broadcast` | local disk | OBJECTID (default) | 2.0 | 2.1 | 1.9 | 2.0 |
+| `Broadcast` | local disk | `sortByOffset` | 0.2 | 0.2 | 0.2 | 0.2 |
+| `Broadcast2` | local disk | OBJECTID (default) | 0.1 | 0.1 | 0.1 | 0.2 |
+| `Broadcast2` | local disk | `sortByOffset` | 0.1 | 0.2 | 0.1 | 0.2 |
+| `Broadcast` | S3 | OBJECTID (default) | > 60 | > 60 | > 60 | 2.3 |
+| `Broadcast` | S3 | `sortByOffset` | 7.9 | 8.2 | 8.2 | 2.3 |
+| `Broadcast2` | S3 | OBJECTID (default) | 0.9 | 0.6 | 0.8 | 2.2 |
+| `Broadcast2` | S3 | `sortByOffset` | 1.0 | 0.6 | 0.9 | 2.2 |
+
+What the measurements show:
+- **The compacted copy is the fastest layout on every Spark version.** On S3 with Spark 3.5 to
+  4.1 it beats even the sorted original by about 10x. Sorting reorders the rows within a partition,
+  but each partition of `Broadcast` still spans the whole file and skips across gaps. Each
+  partition of `Broadcast2` reads one contiguous range.
+- **`sortByOffset` costs nothing on a compacted table,** because sorting rows that are already in
+  order is cheap. Leaving it on protects the table once it has been edited again.
+- **Spark 4.2 over S3 takes a flat 2.2 to 2.3 s** for either table and either row order, because
+  of the analytics stream described below.
+- **The copy renumbers OBJECTIDs,** so anything that stored the old IDs needs a mapping. Later
+  edits scatter the rows again; copy again when that happens.
+
+#### I/O per scan
+
+These are Hadoop FileSystem counters for one full scan, taken after a warm-up run.
+
+Local disk gives the same numbers on all four Spark versions:
+
+| Table | Row order | Bytes read through Hadoop | Relative to table + index |
+|---|---|---:|---:|
+| `Broadcast` | OBJECTID (default) | 89.2 GB | 616x |
+| `Broadcast` | `sortByOffset` | 491 MB | 3.4x |
+| `Broadcast2` | either | 92.9 MB | 1.0x |
+
+Hadoop reads local files through a 64 KB buffer. A seek outside that buffer throws it away and
+refills it, so the unsorted scan of `Broadcast` pulls about 65 KB through Hadoop for every row. The
+operating system's page cache serves most of it, which is why it still takes only about 2 s.
+
+S3 (Ozone):
+
+| Table | Row order | GET requests<br>Spark 3.5 / 4.0 / 4.1 | Bytes read<br>Spark 3.5 to 4.1 | GET requests<br>Spark 4.2 | Bytes read<br>Spark 4.2 |
+|---|---|---:|---:|---:|---:|
+| `Broadcast` | OBJECTID (default) | 13,842 / 16,398 / 6,926 in 60 s, then cancelled | 1.6 / 1.9 / 0.8 MB in 60 s | 14 | 144.8 MB |
+| `Broadcast` | `sortByOffset` | 987 | 144.8 MB | 68 | 144.8 MB |
+| `Broadcast2` | OBJECTID (default) | 20 | 92.4 MB | 16 | 92.4 MB |
+| `Broadcast2` | `sortByOffset` | 20 | 92.4 MB | 8 | 92.4 MB |
+
+- **Every scan also sends 44 HEAD requests,** two for each file it opens.
+- **Spark 3.5 to 4.1 use the "classic" S3A stream.**
+  - An unsorted scan of `Broadcast` sends one ranged GET per row (seek operations matched GET
+    requests). A full scan would take about 1.4M requests, more than an hour at the rates
+    observed.
+  - Sorting cuts that to 987 GETs. 974 of those streams are aborted when the next seek jumps past
+    them.
+  - The compacted copy needs 20 GETs: one sequential read of the table and one of the index for
+    each of the 8 partitions, plus the catalog and schema reads.
+- **Spark 4.2 uses the "analytics" S3A stream** (`stream_read_analytics_opened`).
+  - It reads each file whole in a few large GETs, whatever the row order, and serves seeks from
+    memory.
+  - It does not report `action_http_get_request`, so its GET count is `store_io_request` minus
+    the HEAD requests.
 
 ## TODO
 
