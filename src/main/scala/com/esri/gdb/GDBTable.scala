@@ -386,13 +386,24 @@ class GDBTable(dataBuffer: DataBuffer,
    * @param numRows the number of index *slots* to scan, -1 for every slot from startAtRow on.
    *                Deleted rows still occupy slots, so header.numFeatures (a live-row count) would
    *                truncate an uncompacted table. GDBIndex.indices clamps both arguments.
+   * @param sortByOffset read the rows in .gdbtable file order instead of OBJECTID order. An edited
+   *                     table scatters its rows, and every out-of-order seek on an object store
+   *                     such as S3 is a new ranged GET; in file order the scan is one forward pass.
    */
-  def rows(index: GDBIndex, numRows: Int = -1, startAtRow: Int = 0): Iterator[Row] = {
+  def rows(index: GDBIndex, numRows: Int = -1, startAtRow: Int = 0, sortByOffset: Boolean = false): Iterator[Row] = {
     // An unreadable header (compressed table, wrong signature) yields no fields. Scanning the index
     // anyway would decode garbage record lengths out of a file we already know we cannot parse.
     if (header.fields.isEmpty) return Iterator.empty
     val fieldsCopy = header.fields.map(_.copy())
-    val iterator = new GDBTableIterator(index.indices(numRows, startAtRow), dataBuffer, fieldsCopy)
+    val indices = index.indices(numRows, startAtRow)
+    // shortcut: holds the whole slice's index rows in memory (~32 bytes each); use more partitions
+    // if a single slice ever gets too large for that.
+    val ordered = if (sortByOffset) {
+      val rows = indices.toArray
+      java.util.Arrays.sort(rows, GDBIndexRow.BySeek)
+      rows.iterator
+    } else indices
+    val iterator = new GDBTableIterator(ordered, dataBuffer, fieldsCopy)
     if (context.isDefined) {
       context.get.addTaskCompletionListener(iterator)
     }

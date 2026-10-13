@@ -32,18 +32,20 @@ package object gdb {
   implicit class SparkContextImplicits(val sc: SparkContext) extends AnyVal {
     def gdb(path: String,
             name: String = "GDB_SystemCatalog",
-            numPartitions: Int = sc.getConf.getInt("spark.default.parallelism", 8)
+            numPartitions: Int = sc.getConf.getInt("spark.default.parallelism", 8),
+            sortByOffset: Boolean = false
            ): GDBRDD = {
-      GDBRDD(new SerializableConfiguration(sc.hadoopConfiguration), path, name, numPartitions)
+      GDBRDD(new SerializableConfiguration(sc.hadoopConfiguration), path, name, numPartitions, sortByOffset)
     }
   }
 
   implicit class SQLContextImplicits(val sqlContext: SQLContext) extends AnyVal {
     def gdb(path: String,
             name: String = "GDB_SystemCatalog",
-            numPartitions: Int = sqlContext.sparkContext.getConf.getInt("spark.default.parallelism", 8)
+            numPartitions: Int = sqlContext.sparkContext.getConf.getInt("spark.default.parallelism", 8),
+            sortByOffset: Boolean = false
            ): DataFrame = {
-      val relation = GDBRelation(path, name, numPartitions)(sqlContext)
+      val relation = GDBRelation(path, name, numPartitions, sortByOffset)(sqlContext)
       sqlContext.baseRelationToDataFrame(relation)
     }
   }
@@ -51,12 +53,14 @@ package object gdb {
   implicit class DataFrameReaderImplicits(val reader: DataFrameReader) extends AnyVal {
     def gdb(path: String,
             name: String = "GDB_SystemCatalog",
-            numPartitions: Int = 8
+            numPartitions: Int = 8,
+            sortByOffset: Boolean = false
            ): DataFrame = reader
       .format("gdb")
       .option(GDBOptions.PATH, path)
       .option(GDBOptions.NAME, name)
       .option(GDBOptions.NUM_PARTITIONS, numPartitions.toString)
+      .option(GDBOptions.SORT_BY_OFFSET, sortByOffset.toString)
       .load()
   }
 

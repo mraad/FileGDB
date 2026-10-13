@@ -10,7 +10,8 @@ import scala.collection.mutable.ArrayBuffer
 case class GDBRDD(hadoopConfSer: SerializableConfiguration,
                   gdbPath: String,
                   gdbName: String,
-                  numPartitions: Int
+                  numPartitions: Int,
+                  sortByOffset: Boolean = false
                  ) extends RDD[Row](SparkContext.getOrCreate(), Seq.empty) {
 
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
@@ -21,7 +22,7 @@ case class GDBRDD(hadoopConfSer: SerializableConfiguration,
         val table = GDBTable(hadoopConfSer.value, gdbPath, part.hexName, someContext)
         context.addTaskCompletionListener(index)
         context.addTaskCompletionListener(table)
-        table.rows(index, part.numRowsToRead, part.startAtRow)
+        table.rows(index, part.numRowsToRead, part.startAtRow, sortByOffset)
       case _ => Iterator.empty
     }
   }

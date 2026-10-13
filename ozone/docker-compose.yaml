@@ -1,0 +1,8 @@
+# Single-node Apache Ozone with its S3 gateway on http://localhost:9878, for testing s3a:// reads.
+# Unsecured cluster: any access key / secret pair is accepted. Data is lost on `down`.
+services:
+  ozone:
+    image: apache/ozone:2.2.1-all-in-one
+    ports:
+      - "9878:9878" # S3 gateway
+      - "9888:9888" # Recon web UI

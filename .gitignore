@@ -21,3 +21,5 @@ jn.sh
 **/*.lock
 !uv.lock
 .venv
+__pycache__
+.DS_Store
