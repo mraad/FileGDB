@@ -165,8 +165,8 @@ Here is yet another example in Scala:
 ```scala
 import com.esri.gdb._
 
-val path = "World.gdb"
-val name = "Countries"
+val path = "data/Miami.gdb"
+val name = "Broadcast"
 
 val spark = SparkSession.builder().getOrCreate()
 try
@@ -177,7 +177,7 @@ try
       .createTempView(name)
 
     spark
-      .sql(s"select CNTRY_NAME,SQKM from $name where SQKM < 10000.0 ORDER BY SQKM DESC LIMIT 10")
+      .sql(s"select MMSI, count(*) as reports, avg(Shape.x) as x, avg(Shape.y) as y from $name group by MMSI order by reports desc limit 10")
       .collect()
       .foreach(println)
 }
