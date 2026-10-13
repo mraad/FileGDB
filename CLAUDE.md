@@ -29,8 +29,12 @@ mvn test -Dsuites='com.esri.gdb.GDBSuite Read Miami'     # tests in a suite whos
   test it.
 - Main code must compile on Scala 2.12 **and** 2.13 and on a Java 8 target. For example, the code widens
   `ByteBuffer` to `Buffer` before calling `position(int)`, because that override is covariant only from Java 9.
-- Test fixtures: `GDBSuite` reads paths relative to the repo root. `data/Miami.gdb` is the readable fixture that
-  every clone has. `data/World.gdb` is tracked too, but its only table is CDF-compressed and therefore unreadable.
+- Test fixtures: `GDBSuite` reads paths relative to the repo root.
+  - Git tracks only `data/*.gdb.tar.xz`; the extracted `data/*.gdb/` folders are gitignored. README "Test data"
+    has the extract commands.
+  - `data/Miami.gdb` is the readable fixture. The `extract-test-data` profile, activated when the folder is missing,
+    extracts it before the tests run, and `smoke_test.py` extracts it for its default run.
+  - `data/World.gdb`'s only table is CDF-compressed and therefore unreadable.
   The suite's other fixtures are gitignored or untracked, so on a fresh clone the tests that use them fail.
   `ReadSuite` is `@Ignore`d.
 

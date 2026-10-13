@@ -105,6 +105,30 @@ mvn clean install -Pspark-4.2    # Spark 4.2, Scala 2.13
 
 The Spark 4 builds need JDK 17 or later.
 
+## Test data
+
+The sample File GeoDatabases are stored in `data/` as xz-compressed tar archives:
+
+| Archive | Size | Extracts to |
+|---|---:|---|
+| `data/Miami.gdb.tar.xz` | 19.6 MB | `data/Miami.gdb` (186 MB): AIS vessel tracks, including the edited `Broadcast` table. Used by the tests and examples. |
+| `data/Miami2.gdb.tar.xz` | 13.7 MB | `data/Miami2.gdb` (109 MB): `Broadcast2`, a compacted copy of `Broadcast`. See [Compacting a table](#compacting-a-table). |
+| `data/World.gdb.tar.xz` | 3.4 MB | `data/World.gdb` (3.6 MB): `Countries`, a CDF-compressed table that this reader cannot read. |
+
+Decompress and untar them in place:
+
+```bash
+tar -xJf data/Miami.gdb.tar.xz -C data                     # one archive
+for f in data/*.gdb.tar.xz; do tar -xJf "$f" -C data; done  # all of them
+xz -dc data/Miami.gdb.tar.xz | tar -xf - -C data            # if your tar has no xz support
+```
+
+Two things extract the data for you when it is missing:
+- `mvn test`, through the `extract-test-data` profile, extracts `data/Miami.gdb`.
+- `smoke_test.py`, run without an argument, extracts its default `data/Miami.gdb`.
+
+The extracted folders are gitignored.
+
 ## Usage
 
 The best demonstration of the usage of this implementation is with [PySpark DataFrames](https://docs.databricks.com/spark/latest/dataframes-datasets/introduction-to-dataframes-python.html) and in conjunction with the [ArcGIS API for Python](https://developers.arcgis.com/python/).

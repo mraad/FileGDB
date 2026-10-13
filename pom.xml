@@ -178,6 +178,42 @@
         </profile>
         <!-- spark-3.5 is the default; its properties live in the top-level <properties> block. -->
         <profile>
+            <!-- The Miami test fixture ships as data/Miami.gdb.tar.xz. Extract it when a clone lacks it. -->
+            <id>extract-test-data</id>
+            <activation>
+                <file>
+                    <missing>${basedir}/data/Miami.gdb</missing>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.4</version>
+                        <executions>
+                            <execution>
+                                <id>extract-miami</id>
+                                <phase>generate-test-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>tar</executable>
+                                    <arguments>
+                                        <argument>-xJf</argument>
+                                        <argument>data/Miami.gdb.tar.xz</argument>
+                                        <argument>-C</argument>
+                                        <argument>data</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <!-- Spark reaches into JDK internals - without these the test JVM dies at startup. -->
             <id>jdk9+</id>
             <activation>
