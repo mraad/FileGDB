@@ -15,8 +15,8 @@
         <!--
         Default build target. These live here rather than in an activeByDefault profile: Maven
         deactivates activeByDefault profiles as soon as any other profile auto-activates, which
-        would silently break the build the moment the jdk9+ profile below kicks in. The spark-4.x
-        profiles override them when selected explicitly with -Pspark-4.0 / -Pspark-4.1 / -Pspark-4.2.
+        would silently break the build the moment the jdk9+ profile below kicks in. The spark-4.3
+        profile overrides them when selected explicitly with -Pspark-4.3.
         -->
         <java.version>1.8</java.version>
         <scala.compact>2.12</scala.compact>
@@ -147,32 +147,12 @@
 
     <profiles>
         <profile>
-            <id>spark-4.0</id>
-            <properties>
-                <java.version>17</java.version>
-                <scala.compact>2.13</scala.compact>
-                <scala.version>${scala.compact}.16</scala.version>
-                <spark.compact>4.0</spark.compact>
-                <spark.version>${spark.compact}.4</spark.version>
-            </properties>
-        </profile>
-        <profile>
-            <id>spark-4.1</id>
-            <properties>
-                <java.version>17</java.version>
-                <scala.compact>2.13</scala.compact>
-                <scala.version>${scala.compact}.17</scala.version>
-                <spark.compact>4.1</spark.compact>
-                <spark.version>${spark.compact}.3</spark.version>
-            </properties>
-        </profile>
-        <profile>
-            <id>spark-4.2</id>
+            <id>spark-4.3</id>
             <properties>
                 <java.version>17</java.version>
                 <scala.compact>2.13</scala.compact>
                 <scala.version>${scala.compact}.18</scala.version>
-                <spark.compact>4.2</spark.compact>
+                <spark.compact>4.3</spark.compact>
                 <spark.version>${spark.compact}.0</spark.version>
             </properties>
         </profile>

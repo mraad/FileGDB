@@ -2,7 +2,7 @@
 
 Usage: uv run smoke_test.py [/path/to/some.gdb | s3a://bucket/some.gdb]
 
-Another Spark line: uv run --with pyspark==4.2.0 smoke_test.py ...
+Spark 4.3 (needs Python 3.11+): uv run --python 3.11 --with pyspark==4.3.0 smoke_test.py ...
 For s3a://, set AWS_ENDPOINT_URL (e.g. http://localhost:9878 for ozone/docker-compose.yaml),
 AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
 """
@@ -32,6 +32,8 @@ def find_jar() -> str:
     jars = glob.glob(os.path.join(HERE, "target", f"filegdb-*-{spark_compact}-*.jar"))
     jars = [j for j in jars if "sources" not in j and "javadoc" not in j]
     if not jars:
+        if spark_compact not in ("3.5", "4.3"):
+            sys.exit(f"Spark {spark_compact} is not a supported build line; use pyspark 3.5.x or 4.3.x.")
         profile = "" if spark_compact == "3.5" else f" -Pspark-{spark_compact}"
         sys.exit(
             f"No Spark {spark_compact} filegdb jar in target/ - run 'mvn clean install -DskipTests{profile}' first."

@@ -1,6 +1,6 @@
 """Time a full decode of every table in each GDB, in OBJECTID order and with sortByOffset.
 
-Usage: uv run [--with pyspark==4.2.0] bench.py GDB [GDB ...]   (local paths and/or s3a://)
+Usage: uv run [--python 3.11 --with pyspark==4.3.0] bench.py GDB [GDB ...]   (local paths and/or s3a://)
 
 Prints one markdown row per GDB: | gdb | default order (s) | sortByOffset (s) |. Each cell is the
 best of two runs; a run longer than BENCH_CAP seconds (default 300) is cancelled and shown as

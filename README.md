@@ -28,8 +28,9 @@ called out explicitly below, as 0.41 was.
 
   Build:
   - **Breaking (build only):** the Spark 3.3 and 3.4 profiles are gone. Supported builds are
-    Spark 3.5 (the default, Scala 2.12, Java 8 bytecode) and Spark 4.0, 4.1 and 4.2
-    (`-Pspark-4.0`, `-Pspark-4.1`, `-Pspark-4.2`; Scala 2.13, Java 17).
+    Spark 3.5 (the default, Scala 2.12, Java 8 bytecode) and Spark 4.3
+    (`-Pspark-4.3`; Scala 2.13, Java 17). The Spark 4.0, 4.1 and 4.2 profiles are gone; the
+    benchmark tables below still show the timings measured with them.
 
   Smoke test:
   - Runs the JVM of the pyspark it imports. An inherited `SPARK_HOME` used to start that
@@ -98,12 +99,10 @@ called out explicitly below, as 0.41 was.
 
 ```bash
 mvn clean install                # Spark 3.5, Scala 2.12 - target/filegdb-0.69-3.5-2.12.jar
-mvn clean install -Pspark-4.0    # Spark 4.0, Scala 2.13 - target/filegdb-0.69-4.0-2.13.jar
-mvn clean install -Pspark-4.1    # Spark 4.1, Scala 2.13
-mvn clean install -Pspark-4.2    # Spark 4.2, Scala 2.13
+mvn clean install -Pspark-4.3    # Spark 4.3, Scala 2.13 - target/filegdb-0.69-4.3-2.13.jar
 ```
 
-The Spark 4 builds need JDK 17 or later.
+The Spark 4.3 build needs JDK 17 or later.
 
 ## Test data
 
@@ -139,7 +138,7 @@ built jar against a real File GeoDatabase:
 ```bash
 uv sync
 uv run smoke_test.py /path/to/some.gdb                         # Spark 3.5 (pinned in pyproject.toml)
-uv run --with pyspark==4.2.0 smoke_test.py /path/to/some.gdb   # a Spark 4 line, after -Pspark-4.2
+uv run --python 3.11 --with pyspark==4.3.0 smoke_test.py /path/to/some.gdb   # Spark 4.3 (needs Python 3.11+), after -Pspark-4.3
 ```
 
 `smoke_test.py` lists the feature classes, prints each schema, counts the rows, and flags rows that
@@ -180,7 +179,7 @@ pyspark\
 
 That `--jars` path is the default build (Spark 3.5, Scala 2.12). The jar name encodes
 `${filegdb.version}-${spark.compact}-${scala.compact}`, so substitute the matching filename if you
-built another profile - `-Pspark-4.2` produces `filegdb-0.69-4.2-2.13.jar`. This POM has no
+built another profile - `-Pspark-4.3` produces `filegdb-0.69-4.3-2.13.jar`. This POM has no
 `distributionManagement`, so `mvn install` publishes to your local repository only - there is no
 Central coordinate to pass to `--packages`.
 
@@ -306,11 +305,11 @@ machine, so the S3 numbers have no real network latency. A remote object store w
 gap. Local reads ran with a warm OS page cache. Miami was on an external drive and NorthSea on the
 internal SSD.
 
-To reproduce, build the matching profile first, then run:
+The Spark 4.0, 4.1 and 4.2 columns were measured with profiles that 0.69 removed; check out `c6b1036` and build `-Pspark-4.0`/`-4.1`/`-4.2` to reproduce them. To run the benchmark on a supported line (3.5 or 4.3), build its profile first, then run:
 
 ```bash
 export AWS_ACCESS_KEY_ID=ozone AWS_SECRET_ACCESS_KEY=ozone AWS_ENDPOINT_URL=http://localhost:9878
-uv run --with pyspark==4.2.0 bench.py data/Miami.gdb s3a://filegdb/Miami.gdb   # BENCH_CAP=300 by default
+uv run --python 3.11 --with pyspark==4.3.0 bench.py data/Miami.gdb s3a://filegdb/Miami.gdb   # BENCH_CAP=300 by default
 ```
 
 ### Compacting a table

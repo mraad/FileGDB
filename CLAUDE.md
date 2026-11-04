@@ -13,7 +13,7 @@ https://github.com/rouault/dump_gdbtable/wiki/FGDB-Spec
 
 ```bash
 mvn clean install -DskipTests                 # default: Spark 3.5.x / Scala 2.12 / Java 8 target
-mvn clean install -DskipTests -Pspark-4.2     # Spark 4.2 / Scala 2.13 / Java 17; also -Pspark-4.0, -Pspark-4.1
+mvn clean install -DskipTests -Pspark-4.3     # Spark 4.3 / Scala 2.13 / Java 17 (the only Spark 4 line)
 mvn test                                      # all suites (scalatest-maven-plugin; surefire is disabled)
 mvn test -Dsuites=com.esri.gdb.GDBSuite                  # one suite
 mvn test -Dsuites='com.esri.gdb.GDBSuite Read Miami'     # tests in a suite whose name contains the substring
