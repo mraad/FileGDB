@@ -27,3 +27,5 @@ __pycache__
 data/Miami.gdb/
 data/Miami2.gdb/
 data/World.gdb/
+# Written by notebooks/GenerateGDB.ipynb on every run
+notebooks/*.gdb/
