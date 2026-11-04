@@ -138,7 +138,7 @@ built jar against a real File GeoDatabase:
 ```bash
 uv sync
 uv run smoke_test.py /path/to/some.gdb                         # Spark 3.5 (pinned in pyproject.toml)
-uv run --with pyspark==4.3.0 smoke_test.py /path/to/some.gdb   # Spark 4.3, after -Pspark-4.3
+uv run --python 3.11 --with pyspark==4.3.0 smoke_test.py /path/to/some.gdb   # Spark 4.3 (needs Python 3.11+), after -Pspark-4.3
 ```
 
 `smoke_test.py` lists the feature classes, prints each schema, counts the rows, and flags rows that
@@ -305,11 +305,11 @@ machine, so the S3 numbers have no real network latency. A remote object store w
 gap. Local reads ran with a warm OS page cache. Miami was on an external drive and NorthSea on the
 internal SSD.
 
-To reproduce, build the matching profile first, then run:
+The Spark 4.0, 4.1 and 4.2 columns were measured with profiles that 0.69 removed; check out `c6b1036` and build `-Pspark-4.0`/`-4.1`/`-4.2` to reproduce them. To run the benchmark on a supported line (3.5 or 4.3), build its profile first, then run:
 
 ```bash
 export AWS_ACCESS_KEY_ID=ozone AWS_SECRET_ACCESS_KEY=ozone AWS_ENDPOINT_URL=http://localhost:9878
-uv run --with pyspark==4.3.0 bench.py data/Miami.gdb s3a://filegdb/Miami.gdb   # BENCH_CAP=300 by default
+uv run --python 3.11 --with pyspark==4.3.0 bench.py data/Miami.gdb s3a://filegdb/Miami.gdb   # BENCH_CAP=300 by default
 ```
 
 ### Compacting a table
